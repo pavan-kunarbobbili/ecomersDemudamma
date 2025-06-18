@@ -1,0 +1,2658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar Marketplace - Space E-commerce</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- jspdf and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Tone.js for audio notifications -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000; /* Black background */
+            color: #E0E0E0; /* Light grey text */
+            overflow-x: hidden;
+        }
+
+        /* Animated stars background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0;
+            animation: twinkle linear infinite;
+        }
+
+        @keyframes twinkle {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Glowing button effect */
+        .glow-button {
+            transition: all 0.3s ease;
+            box-shadow: 0 0 0px rgba(255, 255, 0, 0); /* Initial shadow */
+        }
+
+        .glow-button:hover {
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.6), 0 0 20px rgba(255, 255, 0, 0.4), 0 0 30px rgba(255, 255, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #333;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+
+        /* Custom scrollable area */
+        .scrollable-content {
+            max-height: calc(100vh - 200px); /* Adjust based on header/footer */
+            overflow-y: auto;
+        }
+
+        /* Notification bell animation */
+        @keyframes bell-shake {
+            0% { transform: rotate(0deg); }
+            15% { transform: rotate(15deg); }
+            30% { transform: rotate(-15deg); }
+            45% { transform: rotate(10deg); }
+            60% { transform: rotate(-10deg); }
+            75% { transform: rotate(5deg); }
+            100% { transform: rotate(0deg); }
+        }
+        .bell-animate {
+            animation: bell-shake 0.8s ease-in-out infinite;
+        }
+
+        /* Custom modal overlay */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Hide elements by default for language toggle */
+        [data-lang="en"] { display: block; }
+        [data-lang="te"] { display: none; }
+        body.lang-te [data-lang="en"] { display: none; }
+        body.lang-te [data-lang="te"] { display: block; }
+    </style>
+</head>
+<body class="bg-black text-gray-200">
+    <!-- Animated stars background -->
+    <div class="stars"></div>
+
+    <div id="app" class="min-h-screen flex flex-col items-center p-4 relative">
+        <!-- Loading Indicator -->
+        <div id="loading-spinner" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+            <div class="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-yellow-500"></div>
+            <p class="ml-4 text-yellow-500 text-lg">Loading...</p>
+        </div>
+
+        <!-- Notification Pop-up -->
+        <div id="notification-popup" class="fixed top-4 right-4 bg-yellow-600 text-black p-4 rounded-lg shadow-lg z-50 hidden transition-all duration-300 ease-in-out transform translate-x-full">
+            <div class="flex items-center">
+                <i class="fas fa-bell mr-2"></i>
+                <span id="notification-message"></span>
+            </div>
+            <button class="absolute top-1 right-2 text-sm" onclick="hideNotificationPopup()">&times;</button>
+        </div>
+
+        <!-- Global Header -->
+        <header class="w-full max-w-6xl flex justify-between items-center py-4 px-6 bg-gray-900 rounded-lg shadow-xl mb-6">
+            <h1 class="text-3xl font-bold text-yellow-500">
+                <span data-lang="en">Stellar Marketplace</span>
+                <span data-lang="te">స్టెల్లార్ మార్కెట్‌ప్లేస్</span>
+            </h1>
+            <nav class="flex items-center space-x-4">
+                <button id="customer-view-btn" class="bg-yellow-500 text-black px-4 py-2 rounded-full glow-button hover:bg-yellow-400 font-medium">
+                    <span data-lang="en">Customer</span>
+                    <span data-lang="te">కస్టమర్</span>
+                </button>
+                <button id="owner-login-btn" class="bg-gray-700 text-white px-4 py-2 rounded-full glow-button hover:bg-gray-600 font-medium">
+                    <span data-lang="en">Owner Login</span>
+                    <span data-lang="te">ఓనర్ లాగిన్</span>
+                </button>
+                <div class="relative inline-block text-left">
+                    <button id="language-toggle-btn" type="button" class="inline-flex justify-center w-full rounded-md border border-gray-600 shadow-sm px-4 py-2 bg-gray-800 text-sm font-medium text-gray-200 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-yellow-500" aria-haspopup="true" aria-expanded="true">
+                        <span id="current-lang-display">EN</span>
+                        <i class="fas fa-chevron-down ml-2 -mr-1 text-xs"></i>
+                    </button>
+                    <div id="language-dropdown" class="origin-top-right absolute right-0 mt-2 w-24 rounded-md shadow-lg bg-gray-900 ring-1 ring-black ring-opacity-5 focus:outline-none hidden" role="menu" aria-orientation="vertical" aria-labelledby="language-toggle-btn">
+                        <div class="py-1" role="none">
+                            <a href="#" class="text-gray-200 block px-4 py-2 text-sm hover:bg-gray-700" role="menuitem" data-lang-code="en">English</a>
+                            <a href="#" class="text-gray-200 block px-4 py-2 text-sm hover:bg-gray-700" role="menuitem" data-lang-code="te">తెలుగు</a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="w-full max-w-6xl bg-gray-900 rounded-lg shadow-xl p-8">
+            <!-- Customer Section -->
+            <section id="customer-section" class="hidden">
+                <h2 class="text-4xl font-bold text-yellow-500 mb-8 text-center">
+                    <span data-lang="en">Explore Shops & Products</span>
+                    <span data-lang="te">దుకాణాలు & ఉత్పత్తులను అన్వేషించండి</span>
+                </h2>
+
+                <!-- Customer Navigation -->
+                <nav class="flex justify-center space-x-6 mb-8">
+                    <button id="customer-browse-btn" class="customer-nav-btn bg-yellow-500 text-black px-6 py-3 rounded-full glow-button font-semibold">
+                        <span data-lang="en">Browse Shops</span>
+                        <span data-lang="te">దుకాణాలను బ్రౌజ్ చేయండి</span>
+                    </button>
+                    <button id="customer-cart-btn" class="customer-nav-btn bg-gray-700 text-white px-6 py-3 rounded-full glow-button font-semibold">
+                        <span data-lang="en">My Cart</span> (<span id="cart-item-count">0</span>)
+                        <span data-lang="te">నా కార్ట్</span> (<span id="cart-item-count-te">0</span>)
+                    </button>
+                    <button id="customer-track-order-btn" class="customer-nav-btn bg-gray-700 text-white px-6 py-3 rounded-full glow-button font-semibold">
+                        <span data-lang="en">Track Order</span>
+                        <span data-lang="te">ఆర్డర్ ట్రాక్ చేయండి</span>
+                    </button>
+                    <button id="customer-past-orders-btn" class="customer-nav-btn bg-gray-700 text-white px-6 py-3 rounded-full glow-button font-semibold">
+                        <span data-lang="en">Past Orders</span>
+                        <span data-lang="te">గత ఆర్డర్లు</span>
+                    </button>
+                    <button id="customer-contact-btn" class="customer-nav-btn bg-gray-700 text-white px-6 py-3 rounded-full glow-button font-semibold">
+                        <span data-lang="en">Contact</span>
+                        <span data-lang="te">సంప్రదించండి</span>
+                    </button>
+                </nav>
+
+                <!-- Browse Shops & Products View -->
+                <div id="customer-browse-view" class="p-4 bg-gray-800 rounded-lg shadow-inner">
+                    <div class="mb-6 flex items-center space-x-4">
+                        <input type="text" id="product-search-input" placeholder="Search products..." class="shadow appearance-none border border-gray-600 rounded-lg flex-grow py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500">
+                        <button id="product-search-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold">
+                            <i class="fas fa-search mr-2"></i>
+                            <span data-lang="en">Search</span>
+                            <span data-lang="te">శోధించండి</span>
+                        </button>
+                    </div>
+                    <div id="shops-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Shops will be loaded here -->
+                        <p class="text-center text-gray-400" data-lang="en">No shops available.</p>
+                        <p class="text-center text-gray-400 hidden" data-lang="te">దుకాణాలు అందుబాటులో లేవు.</p>
+                    </div>
+                    <p id="search-no-results" class="text-center text-gray-400 mt-4 hidden">
+                        <span data-lang="en">No products found matching your search.</span>
+                        <span data-lang="te" class="hidden">మీ శోధనకు సరిపోలే ఉత్పత్తులు కనుగొనబడలేదు.</span>
+                    </p>
+                </div>
+
+                <!-- Shopping Cart View -->
+                <div id="customer-cart-view" class="hidden p-4 bg-gray-800 rounded-lg shadow-inner">
+                    <h3 class="text-3xl font-bold text-yellow-400 mb-6">
+                        <span data-lang="en">Your Shopping Cart</span>
+                        <span data-lang="te">మీ షాపింగ్ కార్ట్</span>
+                    </h3>
+                    <div id="cart-items" class="space-y-4 mb-6">
+                        <!-- Cart items will be loaded here -->
+                        <p class="text-center text-gray-400" data-lang="en">Your cart is empty.</p>
+                        <p class="text-center text-gray-400 hidden" data-lang="te">మీ కార్ట్ ఖాళీగా ఉంది.</p>
+                    </div>
+                    <div id="cart-summary" class="flex flex-col items-end text-2xl font-bold border-t border-gray-600 pt-4">
+                        <p><span data-lang="en">Subtotal: ₹</span><span data-lang="te">ఉపమొత్తం: ₹</span><span id="cart-subtotal">0.00</span></p>
+                        <p><span data-lang="en">Delivery Charge: ₹</span><span data-lang="te">డెలివరీ ఛార్జ్: ₹</span><span id="cart-delivery-charge">0.00</span></p>
+                        <p class="text-yellow-500"><span data-lang="en">Total: ₹</span><span data-lang="te">మొత్తం: ₹</span><span id="cart-total">0.00</span></p>
+                    </div>
+                    <button id="place-order-btn" class="mt-8 w-full bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold text-lg hidden">
+                        <span data-lang="en">Proceed to Checkout</span>
+                        <span data-lang="te">చెల్లింపుకు కొనసాగండి</span>
+                    </button>
+
+                    <!-- Order Placement Modal -->
+                    <div id="place-order-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden modal-overlay">
+                        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md modal-content">
+                            <h3 class="text-2xl font-bold text-yellow-400 mb-6 text-center">
+                                <span data-lang="en">Place Your Order</span>
+                                <span data-lang="te">మీ ఆర్డర్‌ను ఇవ్వండి</span>
+                            </h3>
+                            <form id="order-form" class="space-y-4">
+                                <div>
+                                    <label for="customer-phone" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Phone Number:</span>
+                                        <span data-lang="te">ఫోన్ నంబర్:</span>
+                                    </label>
+                                    <input type="tel" id="customer-phone" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500" required>
+                                </div>
+                                <div>
+                                    <label for="customer-address" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Delivery Address:</span>
+                                        <span data-lang="te">డెలివరీ చిరునామా:</span>
+                                    </label>
+                                    <textarea id="customer-address" rows="4" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500" required></textarea>
+                                </div>
+                                <p class="text-sm text-gray-400 text-center">
+                                    <span data-lang="en">Payment Method: Cash on Delivery</span>
+                                    <span data-lang="te">చెల్లింపు పద్ధతి: క్యాష్ ఆన్ డెలివరీ</span>
+                                </p>
+                                <div class="flex justify-between items-center mt-6">
+                                    <button type="button" id="cancel-order-modal-btn" class="bg-gray-600 text-white px-6 py-3 rounded-full glow-button hover:bg-gray-500 font-semibold">
+                                        <span data-lang="en">Cancel</span>
+                                        <span data-lang="te">రద్దు చేయండి</span>
+                                    </button>
+                                    <button type="submit" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold">
+                                        <span data-lang="en">Confirm Order</span>
+                                        <span data-lang="te">ఆర్డర్ నిర్ధారించండి</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Order Confirmation Message Modal -->
+                    <div id="order-confirmation-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden modal-overlay">
+                        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md text-center modal-content">
+                            <h3 class="text-2xl font-bold text-green-500 mb-4">
+                                <span data-lang="en">Order Placed Successfully!</span>
+                                <span data-lang="te">ఆర్డర్ విజయవంతంగా ఉంచబడింది!</span>
+                            </h3>
+                            <p class="text-lg text-gray-300 mb-6">
+                                <span data-lang="en">Your Order ID is:</span>
+                                <span data-lang="te">మీ ఆర్డర్ ఐడి:</span>
+                                <strong id="displayed-order-id" class="text-yellow-400"></strong>
+                            </p>
+                            <button id="close-confirmation-modal-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold">
+                                <span data-lang="en">OK</span>
+                                <span data-lang="te">సరే</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Location Permission Request Modal -->
+                    <div id="location-permission-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden modal-overlay">
+                        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md text-center modal-content">
+                            <h3 class="text-2xl font-bold text-yellow-400 mb-4">
+                                <span data-lang="en">Location Access Required</span>
+                                <span data-lang="te">స్థాన యాక్సెస్ అవసరం</span>
+                            </h3>
+                            <p class="text-lg text-gray-300 mb-6">
+                                <span data-lang="en">To calculate accurate delivery charges, we need your current location. Please allow location access when prompted by your browser.</span>
+                                <span data-lang="te">ఖచ్చితమైన డెలివరీ ఛార్జీలను లెక్కించడానికి, మాకు మీ ప్రస్తుత స్థానం అవసరం. దయచేసి మీ బ్రౌజర్ అడిగినప్పుడు స్థాన యాక్సెస్‌ను అనుమతించండి.</span>
+                            </p>
+                            <div class="flex justify-center space-x-4">
+                                <button id="allow-location-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold">
+                                    <span data-lang="en">Allow Location</span>
+                                    <span data-lang="te">స్థానాన్ని అనుమతించండి</span>
+                                </button>
+                                <button id="deny-location-btn" class="bg-gray-600 text-white px-6 py-3 rounded-full glow-button hover:bg-gray-500 font-semibold">
+                                    <span data-lang="en">No Thanks (Higher Charge)</span>
+                                    <span data-lang="te">వద్దు (ఎక్కువ ఛార్జ్)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Track Order View -->
+                <div id="customer-track-order-view" class="hidden p-4 bg-gray-800 rounded-lg shadow-inner">
+                    <h3 class="text-3xl font-bold text-yellow-400 mb-6">
+                        <span data-lang="en">Track Your Order</span>
+                        <span data-lang="te">మీ ఆర్డర్‌ను ట్రాక్ చేయండి</span>
+                    </h3>
+                    <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
+                        <input type="text" id="track-order-id-input" placeholder="Enter Order ID" class="shadow appearance-none border border-gray-600 rounded-lg w-full md:w-2/3 py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500">
+                        <button id="track-order-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold w-full md:w-1/3">
+                            <span data-lang="en">Track</span>
+                            <span data-lang="te">ట్రాక్ చేయండి</span>
+                        </button>
+                    </div>
+                    <div id="tracked-order-details" class="p-4 bg-gray-700 rounded-lg shadow hidden">
+                        <p class="text-lg mb-2">
+                            <span data-lang="en">Order ID:</span>
+                            <span data-lang="te">ఆర్డర్ ఐడి:</span>
+                            <span id="tracked-order-id" class="font-bold text-yellow-300"></span>
+                        </p>
+                        <p class="text-lg mb-2">
+                            <span data-lang="en">Status:</span>
+                            <span data-lang="te">స్థితి:</span>
+                            <span id="tracked-order-status" class="font-bold text-yellow-300"></span>
+                        </p>
+                        <p class="text-lg mb-2">
+                            <span data-lang="en">Delivery Charge: ₹</span>
+                            <span data-lang="te">డెలివరీ ఛార్జ్: ₹</span>
+                            <span id="tracked-delivery-charge" class="font-bold text-yellow-300"></span>
+                        </p>
+                        <p class="text-lg mb-2">
+                            <span data-lang="en">Ordered on:</span>
+                            <span data-lang="te">ఆర్డర్ చేయబడింది:</span>
+                            <span id="tracked-order-date" class="font-bold text-yellow-300"></span>
+                        </p>
+                        <div class="mt-4">
+                            <h4 class="text-xl font-bold text-yellow-400 mb-2">
+                                <span data-lang="en">Items:</span>
+                                <span data-lang="te">వస్తువులు:</span>
+                            </h4>
+                            <ul id="tracked-order-items" class="list-disc pl-5 text-gray-300"></ul>
+                        </div>
+                    </div>
+                    <p id="track-order-message" class="text-center text-red-400 mt-4 hidden">
+                        <span data-lang="en">Order not found or invalid ID.</span>
+                        <span data-lang="te">ఆర్డర్ కనుగొనబడలేదు లేదా చెల్లని ID.</span>
+                    </p>
+                </div>
+
+                <!-- Past Orders View -->
+                <div id="customer-past-orders-view" class="hidden p-4 bg-gray-800 rounded-lg shadow-inner">
+                    <h3 class="text-3xl font-bold text-yellow-400 mb-6">
+                        <span data-lang="en">Your Past Orders</span>
+                        <span data-lang="te">మీ గత ఆర్డర్లు</span>
+                    </h3>
+                    <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
+                        <input type="tel" id="past-orders-phone-input" placeholder="Enter your Phone Number" class="shadow appearance-none border border-gray-600 rounded-lg w-full md:w-2/3 py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500">
+                        <button id="view-past-orders-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold w-full md:w-1/3">
+                            <span data-lang="en">View Orders</span>
+                            <span data-lang="te">ఆర్డర్‌లను చూడండి</span>
+                        </button>
+                    </div>
+                    <div id="past-orders-list" class="space-y-4">
+                        <!-- Past orders will be loaded here -->
+                        <p class="text-center text-gray-400" data-lang="en">Enter your phone number to view past orders.</p>
+                        <p class="text-center text-gray-400 hidden" data-lang="te">మీ గత ఆర్డర్‌లను చూడటానికి మీ ఫోన్ నంబర్‌ను నమోదు చేయండి.</p>
+                    </div>
+                    <p id="past-orders-message" class="text-center text-red-400 mt-4 hidden">
+                        <span data-lang="en">No orders found for this phone number.</span>
+                        <span data-lang="te">ఈ ఫోన్ నంబర్‌కు ఆర్డర్‌లు కనుగొనబడలేదు.</span>
+                    </p>
+                </div>
+
+                <!-- Contact Owner View -->
+                <div id="customer-contact-view" class="hidden p-4 bg-gray-800 rounded-lg shadow-inner text-center">
+                    <h3 class="text-3xl font-bold text-yellow-400 mb-6">
+                        <span data-lang="en">Contact the Owner</span>
+                        <span data-lang="te">ఓనర్‌ను సంప్రదించండి</span>
+                    </h3>
+                    <p class="text-lg text-gray-300 mb-8">
+                        <span data-lang="en">Need assistance? Reach out to us!</span>
+                        <span data-lang="te">సహాయం కావాలా? మమ్మల్ని సంప్రదించండి!</span>
+                    </p>
+                    <div class="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-6">
+                        <a id="call-owner-btn" href="#" class="bg-yellow-500 text-black px-8 py-4 rounded-full glow-button hover:bg-yellow-400 font-semibold text-xl flex items-center justify-center">
+                            <i class="fas fa-phone mr-3"></i>
+                            <span data-lang="en">Call Us</span>
+                            <span data-lang="te">మాకు కాల్ చేయండి</span>
+                        </a>
+                        <a id="whatsapp-owner-btn" href="#" target="_blank" class="bg-green-500 text-white px-8 py-4 rounded-full glow-button hover:bg-green-400 font-semibold text-xl flex items-center justify-center">
+                            <i class="fab fa-whatsapp mr-3"></i>
+                            <span data-lang="en">Chat on WhatsApp</span>
+                            <span data-lang="te">వాట్సాప్‌లో చాట్ చేయండి</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Owner Section -->
+            <section id="owner-section" class="hidden">
+                <h2 class="text-4xl font-bold text-yellow-500 mb-8 text-center">
+                    <span data-lang="en">Owner Dashboard</span>
+                    <span data-lang="te">ఓనర్ డ్యాష్‌బోర్డ్</span>
+                </h2>
+
+                <div id="owner-login-view" class="p-8 bg-gray-800 rounded-lg shadow-inner text-center">
+                    <h3 class="text-2xl font-bold text-yellow-400 mb-6">
+                        <span data-lang="en">Sign In to Manage Your Store</span>
+                        <span data-lang="te">మీ స్టోర్‌ను నిర్వహించడానికి సైన్ ఇన్ చేయండి</span>
+                    </h3>
+                    <button id="google-sign-in-btn" class="bg-blue-600 text-white px-8 py-4 rounded-full glow-button hover:bg-blue-500 font-semibold text-lg flex items-center justify-center mx-auto">
+                        <i class="fab fa-google mr-3"></i>
+                        <span data-lang="en">Sign in with Google</span>
+                        <span data-lang="te">Google తో సైన్ ఇన్ చేయండి</span>
+                    </button>
+                </div>
+
+                <div id="owner-dashboard-view" class="hidden">
+                    <nav class="flex flex-wrap justify-center space-x-2 md:space-x-4 space-y-2 md:space-y-0 mb-8">
+                        <button id="manage-shops-btn" class="owner-nav-btn bg-yellow-500 text-black px-6 py-3 rounded-full glow-button font-semibold flex items-center">
+                            <i class="fas fa-store mr-2"></i>
+                            <span data-lang="en">Manage Shops</span>
+                            <span data-lang="te">దుకాణాలను నిర్వహించండి</span>
+                        </button>
+                        <button id="manage-products-btn" class="owner-nav-btn bg-gray-700 text-white px-6 py-3 rounded-full glow-button font-semibold flex items-center">
+                            <i class="fas fa-box-open mr-2"></i>
+                            <span data-lang="en">Manage Products</span>
+                            <span data-lang="te">ఉత్పత్తులను నిర్వహించండి</span>
+                        </button>
+                        <button id="view-orders-btn" class="owner-nav-btn bg-gray-700 text-white px-6 py-3 rounded-full glow-button font-semibold flex items-center">
+                            <i class="fas fa-clipboard-list mr-2"></i>
+                            <span data-lang="en">View Orders</span>
+                            <span data-lang="te">ఆర్డర్‌లను చూడండి</span>
+                        </button>
+                        <button id="owner-chat-btn" class="owner-nav-btn bg-gray-700 text-white px-6 py-3 rounded-full glow-button font-semibold flex items-center">
+                            <i class="fas fa-comments mr-2"></i>
+                            <span data-lang="en">Customer Chat</span>
+                            <span data-lang="te">కస్టమర్ చాట్</span>
+                        </button>
+                        <button id="owner-logout-btn" class="bg-red-600 text-white px-6 py-3 rounded-full glow-button hover:bg-red-500 font-semibold flex items-center">
+                            <i class="fas fa-sign-out-alt mr-2"></i>
+                            <span data-lang="en">Logout</span>
+                            <span data-lang="te">లాగ్ అవుట్</span>
+                        </button>
+                        <div class="relative ml-auto flex items-center">
+                            <span class="text-sm text-gray-400 mr-2" data-lang="en">User ID:</span>
+                            <span class="text-sm text-yellow-400 font-mono" id="owner-user-id"></span>
+                            <i id="notification-bell" class="fas fa-bell text-2xl text-yellow-500 ml-4 cursor-pointer hover:scale-110 transition-transform duration-200"></i>
+                            <span id="new-orders-count" class="absolute top-0 right-0 -mt-2 -mr-2 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                        </div>
+                    </nav>
+
+                    <!-- Manage Shops View -->
+                    <div id="manage-shops-view" class="p-4 bg-gray-800 rounded-lg shadow-inner">
+                        <h3 class="text-3xl font-bold text-yellow-400 mb-6 flex justify-between items-center">
+                            <span data-lang="en">Manage Shops</span>
+                            <span data-lang="te">దుకాణాలను నిర్వహించండి</span>
+                            <button id="add-shop-btn" class="bg-green-600 text-white px-4 py-2 rounded-full glow-button hover:bg-green-500 font-semibold text-base">
+                                <i class="fas fa-plus mr-2"></i>
+                                <span data-lang="en">Add New Shop</span>
+                                <span data-lang="te">కొత్త దుకాణం జోడించండి</span>
+                            </button>
+                        </h3>
+                        <div id="owner-shops-list" class="space-y-4">
+                            <!-- Shops will be listed here for owner -->
+                            <p class="text-center text-gray-400" data-lang="en">No shops found. Add one!</p>
+                            <p class="text-center text-gray-400 hidden" data-lang="te">దుకాణాలు కనుగొనబడలేదు. ఒకదాన్ని జోడించండి!</p>
+                        </div>
+                    </div>
+
+                    <!-- Add/Edit Shop Modal -->
+                    <div id="shop-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden modal-overlay">
+                        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md modal-content">
+                            <h3 id="shop-modal-title" class="text-2xl font-bold text-yellow-400 mb-6 text-center"></h3>
+                            <form id="shop-form" class="space-y-4">
+                                <input type="hidden" id="shop-id-field">
+                                <div>
+                                    <label for="shop-name" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Shop Name:</span>
+                                        <span data-lang="te">దుకాణం పేరు:</span>
+                                    </label>
+                                    <input type="text" id="shop-name" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500" required>
+                                </div>
+                                <div>
+                                    <label for="shop-image-url" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Shop Image URL (Optional):</span>
+                                        <span data-lang="te">దుకాణం చిత్ర URL (ఐచ్ఛికం):</span>
+                                    </label>
+                                    <input type="url" id="shop-image-url" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500" placeholder="https://placehold.co/600x400/000000/FFFFFF?text=Shop">
+                                </div>
+                                <div class="flex justify-between items-center mt-6">
+                                    <button type="button" id="cancel-shop-modal-btn" class="bg-gray-600 text-white px-6 py-3 rounded-full glow-button hover:bg-gray-500 font-semibold">
+                                        <span data-lang="en">Cancel</span>
+                                        <span data-lang="te">రద్దు చేయండి</span>
+                                    </button>
+                                    <button type="submit" id="save-shop-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold">
+                                        <span data-lang="en">Save Shop</span>
+                                        <span data-lang="te">దుకాణాన్ని సేవ్ చేయండి</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Manage Products View -->
+                    <div id="manage-products-view" class="hidden p-4 bg-gray-800 rounded-lg shadow-inner">
+                        <h3 class="text-3xl font-bold text-yellow-400 mb-6 flex justify-between items-center">
+                            <span data-lang="en">Manage Products</span>
+                            <span data-lang="te">ఉత్పత్తులను నిర్వహించండి</span>
+                            <button id="add-product-btn" class="bg-green-600 text-white px-4 py-2 rounded-full glow-button hover:bg-green-500 font-semibold text-base">
+                                <i class="fas fa-plus mr-2"></i>
+                                <span data-lang="en">Add New Product</span>
+                                <span data-lang="te">కొత్త ఉత్పత్తిని జోడించండి</span>
+                            </button>
+                        </h3>
+                        <div class="mb-4">
+                            <label for="select-shop-for-products" class="block text-gray-300 text-sm font-bold mb-2">
+                                <span data-lang="en">Select Shop:</span>
+                                <span data-lang="te">దుకాణాన్ని ఎంచుకోండి:</span>
+                            </label>
+                            <select id="select-shop-for-products" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500">
+                                <option value="">-- <span data-lang="en">Select a Shop</span> --</option>
+                                <option value="" data-lang="te">-- దుకాణాన్ని ఎంచుకోండి --</option>
+                            </select>
+                        </div>
+                        <div id="owner-products-list" class="space-y-4">
+                            <!-- Products for selected shop will be listed here -->
+                            <p class="text-center text-gray-400" data-lang="en">Select a shop to manage its products.</p>
+                            <p class="text-center text-gray-400 hidden" data-lang="te">దాని ఉత్పత్తులను నిర్వహించడానికి దుకాణాన్ని ఎంచుకోండి.</p>
+                        </div>
+                    </div>
+
+                    <!-- Add/Edit Product Modal -->
+                    <div id="product-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden modal-overlay">
+                        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md modal-content">
+                            <h3 id="product-modal-title" class="text-2xl font-bold text-yellow-400 mb-6 text-center"></h3>
+                            <form id="product-form" class="space-y-4">
+                                <input type="hidden" id="product-id-field">
+                                <input type="hidden" id="product-shop-id-field">
+                                <div>
+                                    <label for="product-name" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Product Name:</span>
+                                        <span data-lang="te">ఉత్పత్తి పేరు:</span>
+                                    </label>
+                                    <input type="text" id="product-name" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500" required>
+                                </div>
+                                <div>
+                                    <label for="product-price" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Price (₹):</span>
+                                        <span data-lang="te">ధర (₹):</span>
+                                    </label>
+                                    <input type="number" id="product-price" step="0.01" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500" required>
+                                </div>
+                                <div>
+                                    <label for="product-description" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Description:</span>
+                                        <span data-lang="te">వివరణ:</span>
+                                    </label>
+                                    <textarea id="product-description" rows="3" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500"></textarea>
+                                </div>
+                                <div>
+                                    <label for="product-image-url" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Image URL (Optional):</span>
+                                        <span data-lang="te">చిత్ర URL (ఐచ్ఛికం):</span>
+                                    </label>
+                                    <input type="url" id="product-image-url" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500" placeholder="https://placehold.co/400x300/000000/FFFFFF?text=Product">
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="product-in-stock" class="form-checkbox h-5 w-5 text-yellow-500 bg-gray-700 border-gray-600 rounded focus:ring-yellow-500">
+                                    <label for="product-in-stock" class="ml-2 text-gray-300">
+                                        <span data-lang="en">In Stock</span>
+                                        <span data-lang="te">స్టాక్‌లో ఉంది</span>
+                                    </label>
+                                </div>
+                                <div class="flex justify-between items-center mt-6">
+                                    <button type="button" id="cancel-product-modal-btn" class="bg-gray-600 text-white px-6 py-3 rounded-full glow-button hover:bg-gray-500 font-semibold">
+                                        <span data-lang="en">Cancel</span>
+                                        <span data-lang="te">రద్దు చేయండి</span>
+                                    </button>
+                                    <button type="submit" id="save-product-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold">
+                                        <span data-lang="en">Save Product</span>
+                                        <span data-lang="te">ఉత్పత్తిని సేవ్ చేయండి</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- View Orders View -->
+                    <div id="view-orders-view" class="hidden p-4 bg-gray-800 rounded-lg shadow-inner">
+                        <h3 class="text-3xl font-bold text-yellow-400 mb-6">
+                            <span data-lang="en">Customer Orders</span>
+                            <span data-lang="te">కస్టమర్ ఆర్డర్‌లు</span>
+                        </h3>
+                        <div id="owner-orders-list" class="space-y-4">
+                            <!-- Customer orders will be listed here for owner -->
+                            <p class="text-center text-gray-400" data-lang="en">No orders yet.</p>
+                            <p class="text-center text-gray-400 hidden" data-lang="te">ఇంకా ఆర్డర్‌లు లేవు.</p>
+                        </div>
+                    </div>
+
+                    <!-- Order Details/Update Status Modal -->
+                    <div id="order-details-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden modal-overlay">
+                        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md modal-content">
+                            <h3 class="text-2xl font-bold text-yellow-400 mb-6 text-center">
+                                <span data-lang="en">Order Details</span>
+                                <span data-lang="te">ఆర్డర్ వివరాలు</span>
+                            </h3>
+                            <div id="modal-order-content">
+                                <p class="mb-2"><span data-lang="en">Order ID:</span> <span data-lang="te">ఆర్డర్ ఐడి:</span> <strong id="modal-order-id"></strong></p>
+                                <p class="mb-2"><span data-lang="en">Customer Phone:</span> <span data-lang="te">కస్టమర్ ఫోన్:</span> <strong id="modal-customer-phone"></strong></p>
+                                <p class="mb-2"><span data-lang="en">Delivery Address:</span> <span data-lang="te">డెలివరీ చిరునామా:</span> <strong id="modal-delivery-address"></strong></p>
+                                <p class="mb-2"><span data-lang="en">Delivery Charge: ₹</span><span data-lang="te">డెలివరీ ఛార్జ్: ₹</span> <strong id="modal-delivery-charge-display"></strong></p>
+                                <p class="mb-2"><span data-lang="en">Order Date:</span> <span data-lang="te">ఆర్డర్ తేదీ:</span> <strong id="modal-order-date"></strong></p>
+                                <h4 class="text-xl font-bold text-yellow-300 mt-4 mb-2">
+                                    <span data-lang="en">Items:</span>
+                                    <span data-lang="te">వస్తువులు:</span>
+                                </h4>
+                                <ul id="modal-order-items" class="list-disc pl-5 text-gray-300 mb-4"></ul>
+                                <p class="text-lg font-bold"><span data-lang="en">Total: ₹</span><span data-lang="te">మొత్తం: ₹</span> <span id="modal-order-total" class="text-yellow-300"></span></p>
+
+                                <div class="mt-6">
+                                    <label for="modal-order-status" class="block text-gray-300 text-sm font-bold mb-2">
+                                        <span data-lang="en">Update Status:</span>
+                                        <span data-lang="te">స్థితిని నవీకరించండి:</span>
+                                    </label>
+                                    <select id="modal-order-status" class="shadow appearance-none border border-gray-600 rounded-lg w-full py-3 px-4 bg-gray-700 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500">
+                                        <option value="Processing" data-lang="en">Processing</option>
+                                        <option value="Processing" data-lang="te">ప్రాసెసింగ్</option>
+                                        <option value="Out for Delivery" data-lang="en">Out for Delivery</option>
+                                        <option value="Out for Delivery" data-lang="te">డెలివరీ కోసం</option>
+                                        <option value="Delivered" data-lang="en">Delivered</option>
+                                        <option value="Delivered" data-lang="te">డెలివరీ చేయబడింది</option>
+                                        <option value="Cancelled" data-lang="en">Cancelled</option>
+                                        <option value="Cancelled" data-lang="te">రద్దు చేయబడింది</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center mt-6">
+                                <button type="button" id="cancel-order-modal-owner-btn" class="bg-gray-600 text-white px-6 py-3 rounded-full glow-button hover:bg-gray-500 font-semibold">
+                                    <span data-lang="en">Close</span>
+                                    <span data-lang="te">మూసివేయండి</span>
+                                </button>
+                                <button type="button" id="save-order-status-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-full glow-button hover:bg-yellow-400 font-semibold">
+                                    <span data-lang="en">Save Status</span>
+                                    <span data-lang="te">స్థితిని సేవ్ చేయండి</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Owner Chat View -->
+                    <div id="owner-chat-view" class="hidden p-4 bg-gray-800 rounded-lg shadow-inner">
+                        <h3 class="text-3xl font-bold text-yellow-400 mb-6">
+                            <span data-lang="en">Customer Chat Inbox</span>
+                            <span data-lang="te">కస్టమర్ చాట్ ఇన్‌బాక్స్</span>
+                        </h3>
+                        <div class="flex flex-col md:flex-row h-[60vh] md:h-[70vh]">
+                            <!-- Chat List (Conversations) -->
+                            <div class="w-full md:w-1/3 bg-gray-700 p-4 rounded-lg md:mr-4 mb-4 md:mb-0 scrollable-content">
+                                <h4 class="text-xl font-bold text-yellow-300 mb-4">
+                                    <span data-lang="en">Conversations</span>
+                                    <span data-lang="te">సంభాషణలు</span>
+                                </h4>
+                                <div id="chat-conversation-list" class="space-y-2">
+                                    <!-- Conversation summaries will be loaded here -->
+                                    <p class="text-center text-gray-400 text-sm" data-lang="en">No active conversations.</p>
+                                    <p class="text-center text-gray-400 text-sm hidden" data-lang="te">యాక్టివ్ సంభాషణలు లేవు.</p>
+                                </div>
+                            </div>
+                            <!-- Chat Messages -->
+                            <div class="w-full md:w-2/3 bg-gray-700 p-4 rounded-lg flex flex-col">
+                                <h4 id="chat-header" class="text-xl font-bold text-yellow-300 mb-4">
+                                    <span data-lang="en">Select a conversation</span>
+                                    <span data-lang="te">సంభాషణను ఎంచుకోండి</span>
+                                </h4>
+                                <div id="chat-messages-display" class="flex-grow bg-gray-600 p-4 rounded-lg overflow-y-auto mb-4 scrollable-content">
+                                    <!-- Messages will be loaded here -->
+                                    <p class="text-center text-gray-400" data-lang="en">Start a conversation or select one from the left.</p>
+                                    <p class="text-center text-gray-400 hidden" data-lang="te">సంభాషణను ప్రారంభించండి లేదా ఎడమ నుండి ఒకదాన్ని ఎంచుకోండి.</p>
+                                </div>
+                                <div id="chat-input-area" class="flex mt-auto hidden">
+                                    <input type="text" id="chat-message-input" placeholder="Type your message..." class="shadow appearance-none border border-gray-600 rounded-l-lg flex-grow py-3 px-4 bg-gray-800 text-white leading-tight focus:outline-none focus:shadow-outline focus:border-yellow-500">
+                                    <button id="send-chat-message-btn" class="bg-yellow-500 text-black px-6 py-3 rounded-r-lg glow-button hover:bg-yellow-400 font-semibold">
+                                        <span data-lang="en">Send</span>
+                                        <span data-lang="te">పంపండి</span>
+                                    </button>
+                                </div>
+                                <a id="chat-whatsapp-link" href="#" target="_blank" class="mt-4 bg-green-500 text-white px-6 py-3 rounded-full glow-button hover:bg-green-400 font-semibold text-center hidden">
+                                    <i class="fab fa-whatsapp mr-2"></i>
+                                    <span data-lang="en">Continue on WhatsApp</span>
+                                    <span data-lang="te">వాట్సాప్‌లో కొనసాగించండి</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Firebase SDK (Version 11.6.1 is used as per instructions) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Initialization ---
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth;
+        let userId = null; // Will store the current user's ID
+        let currentLanguage = 'en'; // Default language
+        let cart = JSON.parse(localStorage.getItem('cart')) || {}; // Load cart from local storage
+        let ownerPhoneNumber = '+919876543210'; // Replace with actual owner phone number
+
+        // Store configuration for owner (can be changed in code)
+        // Owner can modify these values directly in the code for now.
+        const storeLocation = { lat: 17.3850, lon: 78.4867 }; // Example: Hyderabad, India (Approximate coordinates)
+
+        // Delivery charge tiers (distance in KM, charge in INR)
+        const DELIVERY_CHARGE_TIERS = [
+            { distanceKm: 5, charge: 50 },  // 0-5 km
+            { distanceKm: 20, charge: 100 }, // 5-20 km
+            { distanceKm: Infinity, charge: 200 } // >20 km
+        ];
+        const DEFAULT_DELIVERY_CHARGE_NO_LOCATION = 250; // If location cannot be obtained
+
+        // Helper function to show/hide loading spinner
+        const showLoading = () => document.getElementById('loading-spinner').classList.remove('hidden');
+        const hideLoading = () => document.getElementById('loading-spinner').classList.add('hidden');
+
+        // Helper function to show notifications
+        const showNotificationPopup = (message) => {
+            const popup = document.getElementById('notification-popup');
+            const msgSpan = document.getElementById('notification-message');
+            msgSpan.textContent = message;
+            popup.classList.remove('hidden', 'translate-x-full');
+            popup.classList.add('translate-x-0');
+            setTimeout(() => {
+                hideNotificationPopup();
+            }, 5000); // Hide after 5 seconds
+        };
+        window.hideNotificationPopup = () => { // Make accessible globally for onclick
+            const popup = document.getElementById('notification-popup');
+            popup.classList.remove('translate-x-0');
+            popup.classList.add('translate-x-full');
+            setTimeout(() => popup.classList.add('hidden'), 300); // Fully hide after transition
+        };
+
+        // Initialize Firebase and set up auth listener
+        const initializeFirebase = async () => {
+            showLoading();
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Sign in with custom token if available, otherwise anonymously
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Firebase Auth State Changed: Logged in as", userId);
+                        // If it's the owner's initial login, refresh the UI
+                        if (appState.currentView === 'owner-login-view' || appState.currentView.startsWith('owner-')) {
+                             // This ensures owner UI is set up after login
+                             showOwnerDashboard();
+                        }
+                    } else {
+                        userId = null;
+                        console.log("Firebase Auth State Changed: Logged out or anonymous");
+                        // If owner logs out, go back to owner login screen
+                        if (appState.currentView.startsWith('owner-')) {
+                            showOwnerLogin();
+                        }
+                    }
+                    hideLoading();
+                });
+
+                // Attempt custom token sign-in first
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("Signed in with custom token.");
+                } else {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                }
+
+                setupRealtimeListeners(); // Setup Firestore listeners after auth is ready
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                showNotificationPopup(`Error initializing app: ${error.message}`);
+                hideLoading();
+            }
+        };
+
+        // --- App State and UI Management ---
+        // Global variable to store all products fetched for client-side search
+        let allProductsData = [];
+        let allShopsData = [];
+
+        const appState = {
+            currentView: 'customer-browse-view', // Default view
+            selectedShopId: null,
+            currentCustomerPhone: null, // For past orders/chat identification
+            currentOwnerChatCustomerId: null, // Stores the phone number of the customer being chatted with
+            ownerNewOrdersCount: 0,
+            texts: {
+                en: {
+                    shopName: "Shop Name",
+                    addProduct: "Add Product",
+                    editProduct: "Edit Product",
+                    productName: "Product Name",
+                    price: "Price",
+                    description: "Description",
+                    inStock: "In Stock",
+                    outOfStock: "Out of Stock",
+                    addToCart: "Add to Cart",
+                    viewDetails: "View Details",
+                    quantity: "Quantity",
+                    remove: "Remove",
+                    total: "Total",
+                    subtotal: "Subtotal",
+                    deliveryCharge: "Delivery Charge",
+                    placeOrder: "Place Order",
+                    processing: "Processing",
+                    outForDelivery: "Out for Delivery",
+                    delivered: "Delivered",
+                    cancelled: "Cancelled",
+                    orderNotFound: "Order not found or invalid ID.",
+                    noOrdersForPhone: "No orders found for this phone number.",
+                    selectShop: "-- Select a Shop --",
+                    loading: "Loading...",
+                    orderPlacedSuccess: "Order Placed Successfully!",
+                    yourOrderIdIs: "Your Order ID is:",
+                    confirmOrder: "Confirm Order",
+                    cancel: "Cancel",
+                    saveShop: "Save Shop",
+                    addShop: "Add New Shop",
+                    editShop: "Edit Shop",
+                    saveProduct: "Save Product",
+                    newOrder: "New Order!",
+                    viewOrderDetails: "View Order Details",
+                    customerPhone: "Customer Phone",
+                    deliveryAddress: "Delivery Address",
+                    orderDate: "Order Date",
+                    items: "Items",
+                    saveStatus: "Save Status",
+                    close: "Close",
+                    typeYourMessage: "Type your message...",
+                    send: "Send",
+                    noActiveConversations: "No active conversations.",
+                    selectConversation: "Select a conversation",
+                    startConversation: "Start a conversation or select one from the left.",
+                    continueOnWhatsapp: "Continue on WhatsApp",
+                    userId: "User ID:",
+                    ownerLogin: "Owner Login",
+                    logout: "Logout",
+                    exploreShops: "Explore Shops & Products",
+                    browseShops: "Browse Shops",
+                    myCart: "My Cart",
+                    trackOrder: "Track Order",
+                    pastOrders: "Past Orders",
+                    contact: "Contact",
+                    yourShoppingCart: "Your Shopping Cart",
+                    yourCartIsEmpty: "Your cart is empty.",
+                    proceedToCheckout: "Proceed to Checkout",
+                    placeYourOrder: "Place Your Order",
+                    phoneNumber: "Phone Number:",
+                    deliveryAddressField: "Delivery Address:",
+                    orderConfirmation: "Order Confirmation",
+                    ok: "OK",
+                    trackYourOrder: "Track Your Order",
+                    enterOrderId: "Enter Order ID",
+                    track: "Track",
+                    orderId: "Order ID:",
+                    status: "Status:",
+                    orderedOn: "Ordered on:",
+                    noOrdersYet: "No orders yet.",
+                    noShopsAvailable: "No shops available.",
+                    noShopsFoundAddOne: "No shops found. Add one!",
+                    selectShopToManageProducts: "Select a shop to manage its products.",
+                    customerOrders: "Customer Orders",
+                    orderDetails: "Order Details",
+                    updateStatus: "Update Status:",
+                    customerChatInbox: "Customer Chat Inbox",
+                    conversations: "Conversations",
+                    signInToManageStore: "Sign In to Manage Your Store",
+                    signInWithGoogle: "Sign in with Google",
+                    callUs: "Call Us",
+                    chatOnWhatsapp: "Chat on WhatsApp",
+                    needAssistance: "Need assistance? Reach out to us!",
+                    contactOwner: "Contact the Owner",
+                    ownerDashboard: "Owner Dashboard",
+                    manageShops: "Manage Shops",
+                    manageProducts: "Manage Products",
+                    viewOrders: "View Orders",
+                    customerChat: "Customer Chat",
+                    searchProducts: "Search products...",
+                    search: "Search",
+                    noProductsMatchingSearch: "No products found matching your search.",
+                    paymentMethodCOD: "Payment Method: Cash on Delivery",
+                    locationAccessRequired: "Location Access Required",
+                    locationAccessExplanation: "To calculate accurate delivery charges, we need your current location. Please allow location access when prompted by your browser.",
+                    allowLocation: "Allow Location",
+                    noThanksHigherCharge: "No Thanks (Higher Charge)",
+                    pleaseEnterPhoneNumber: "Please enter your phone number.",
+                    enterYourPhoneNumber: "Enter your phone number to view past orders."
+                },
+                te: {
+                    shopName: "దుకాణం పేరు",
+                    addProduct: "ఉత్పత్తిని జోడించండి",
+                    editProduct: "ఉత్పత్తిని సవరించండి",
+                    productName: "ఉత్పత్తి పేరు",
+                    price: "ధర",
+                    description: "వివరణ",
+                    inStock: "స్టాక్‌లో ఉంది",
+                    outOfStock: "స్టాక్‌లో లేదు",
+                    addToCart: "కార్ట్‌కు జోడించండి",
+                    viewDetails: "వివరాలను చూడండి",
+                    quantity: "పరిమాణం",
+                    remove: "తీసివేయండి",
+                    total: "మొత్తం",
+                    subtotal: "ఉపమొత్తం",
+                    deliveryCharge: "డెలివరీ ఛార్జ్",
+                    placeOrder: "ఆర్డర్ చేయండి",
+                    processing: "ప్రాసెసింగ్",
+                    outForDelivery: "డెలివరీ కోసం",
+                    delivered: "డెలివరీ చేయబడింది",
+                    cancelled: "రద్దు చేయబడింది",
+                    orderNotFound: "ఆర్డర్ కనుగొనబడలేదు లేదా చెల్లని ID.",
+                    noOrdersForPhone: "ఈ ఫోన్ నంబర్‌కు ఆర్డర్‌లు కనుగొనబడలేదు.",
+                    selectShop: "-- దుకాణాన్ని ఎంచుకోండి --",
+                    loading: "లోడ్ అవుతోంది...",
+                    orderPlacedSuccess: "ఆర్డర్ విజయవంతంగా ఉంచబడింది!",
+                    yourOrderIdIs: "మీ ఆర్డర్ ఐడి:",
+                    confirmOrder: "ఆర్డర్ నిర్ధారించండి",
+                    cancel: "రద్దు చేయండి",
+                    saveShop: "దుకాణాన్ని సేవ్ చేయండి",
+                    addShop: "కొత్త దుకాణం జోడించండి",
+                    editShop: "దుకాణాన్ని సవరించండి",
+                    saveProduct: "ఉత్పత్తిని సేవ్ చేయండి",
+                    newOrder: "కొత్త ఆర్డర్!",
+                    viewOrderDetails: "ఆర్డర్ వివరాలను చూడండి",
+                    customerPhone: "కస్టమర్ ఫోన్",
+                    deliveryAddress: "డెలివరీ చిరునామా",
+                    orderDate: "ఆర్డర్ తేదీ",
+                    items: "వస్తువులు",
+                    saveStatus: "స్థితిని సేవ్ చేయండి",
+                    close: "మూసివేయండి",
+                    typeYourMessage: "మీ సందేశాన్ని టైప్ చేయండి...",
+                    send: "పంపండి",
+                    noActiveConversations: "యాక్టివ్ సంభాషణలు లేవు.",
+                    selectConversation: "సంభాషణను ఎంచుకోండి",
+                    startConversation: "సంభాషణను ప్రారంభించండి లేదా ఎడమ నుండి ఒకదాన్ని ఎంచుకోండి.",
+                    continueOnWhatsapp: "వాట్సాప్‌లో కొనసాగించండి",
+                    userId: "వినియోగదారు ID:",
+                    ownerLogin: "ఓనర్ లాగిన్",
+                    logout: "లాగ్ అవుట్",
+                    exploreShops: "దుకాణాలు & ఉత్పత్తులను అన్వేషించండి",
+                    browseShops: "దుకాణాలను బ్రౌజ్ చేయండి",
+                    myCart: "నా కార్ట్",
+                    trackOrder: "ఆర్డర్ ట్రాక్ చేయండి",
+                    pastOrders: "గత ఆర్డర్లు",
+                    contact: "సంప్రదించండి",
+                    yourShoppingCart: "మీ షాపింగ్ కార్ట్",
+                    yourCartIsEmpty: "మీ కార్ట్ ఖాళీగా ఉంది.",
+                    proceedToCheckout: "చెల్లింపుకు కొనసాగండి",
+                    placeYourOrder: "మీ ఆర్డర్‌ను ఇవ్వండి",
+                    phoneNumber: "ఫోన్ నంబర్:",
+                    deliveryAddressField: "డెలివరీ చిరునామా:",
+                    orderConfirmation: "ఆర్డర్ నిర్ధారణ",
+                    ok: "సరే",
+                    trackYourOrder: "మీ ఆర్డర్‌ను ట్రాక్ చేయండి",
+                    enterOrderId: "ఆర్డర్ ఐడిని నమోదు చేయండి",
+                    track: "ట్రాక్ చేయండి",
+                    orderId: "ఆర్డర్ ఐడి:",
+                    status: "స్థితి:",
+                    orderedOn: "ఆర్డర్ చేయబడింది:",
+                    noOrdersYet: "ఇంకా ఆర్డర్‌లు లేవు.",
+                    noShopsAvailable: "దుకాణాలు అందుబాటులో లేవు.",
+                    noShopsFoundAddOne: "దుకాణాలు కనుగొనబడలేదు. ఒకదాన్ని జోడించండి!",
+                    selectShopToManageProducts: "దాని ఉత్పత్తులను నిర్వహించడానికి దుకాణాన్ని ఎంచుకోండి.",
+                    customerOrders: "కస్టమర్ ఆర్డర్‌లు",
+                    orderDetails: "ఆర్డర్ వివరాలు",
+                    updateStatus: "స్థితిని నవీకరించండి:",
+                    customerChatInbox: "కస్టమర్ చాట్ ఇన్‌బాక్స్",
+                    conversations: "సంభాషణలు",
+                    signInToManageStore: "మీ స్టోర్‌ను నిర్వహించడానికి సైన్ ఇన్ చేయండి",
+                    signInWithGoogle: "Google తో సైన్ ఇన్ చేయండి",
+                    callUs: "మాకు కాల్ చేయండి",
+                    chatOnWhatsapp: "వాట్సాప్‌లో చాట్ చేయండి",
+                    needAssistance: "సహాయం కావాలా? మమ్మల్ని సంప్రదించండి!",
+                    contactOwner: "ఓనర్‌ను సంప్రదించండి",
+                    ownerDashboard: "ఓనర్ డ్యాష్‌బోర్డ్",
+                    manageShops: "దుకాణాలను నిర్వహించండి",
+                    manageProducts: "ఉత్పత్తులను నిర్వహించండి",
+                    viewOrders: "ఆర్డర్‌లను చూడండి",
+                    customerChat: "కస్టమర్ చాట్",
+                    searchProducts: "Search products...",
+                    search: "Search",
+                    noProductsMatchingSearch: "No products found matching your search.",
+                    paymentMethodCOD: "Payment Method: Cash on Delivery",
+                    locationAccessRequired: "Location Access Required",
+                    locationAccessExplanation: "To calculate accurate delivery charges, we need your current location. Please allow location access when prompted by your browser.",
+                    allowLocation: "Allow Location",
+                    noThanksHigherCharge: "No Thanks (Higher Charge)",
+                    pleaseEnterPhoneNumber: "Please enter your phone number.",
+                    enterYourPhoneNumber: "Enter your phone number to view past orders."
+                }
+            }
+        };
+
+        // Function to update UI texts based on current language
+        const updateTexts = () => {
+            document.querySelectorAll('[data-lang]').forEach(element => {
+                const langEn = element.getAttribute('data-lang-en'); // For dynamic values
+                const langTe = element.getAttribute('data-lang-te'); // For dynamic values
+                if (langEn && langTe) {
+                    element.textContent = currentLanguage === 'en' ? langEn : langTe;
+                } else {
+                    // For static text in HTML
+                    element.classList.toggle('hidden', element.getAttribute('data-lang') !== currentLanguage);
+                }
+            });
+            // Update select option texts
+            const selectShopProducts = document.getElementById('select-shop-for-products');
+            if (selectShopProducts) {
+                selectShopProducts.querySelector('option[value=""]').textContent = currentLanguage === 'en' ? appState.texts.en.selectShop : appState.texts.te.selectShop;
+            }
+            // Update placeholder text for search input
+            const searchInput = document.getElementById('product-search-input');
+            if (searchInput) {
+                searchInput.placeholder = currentLanguage === 'en' ? appState.texts.en.searchProducts : appState.texts.te.searchProducts;
+            }
+            // Update placeholder text for phone input in past orders
+            const pastOrdersPhoneInput = document.getElementById('past-orders-phone-input');
+            if (pastOrdersPhoneInput) {
+                pastOrdersPhoneInput.placeholder = currentLanguage === 'en' ? 'Enter your Phone Number' : 'మీ ఫోన్ నంబర్‌ను నమోదు చేయండి';
+            }
+            // Update placeholder text for track order ID input
+            const trackOrderIdInput = document.getElementById('track-order-id-input');
+            if (trackOrderIdInput) {
+                trackOrderIdInput.placeholder = currentLanguage === 'en' ? 'Enter Order ID' : 'ఆర్డర్ ఐడిని నమోదు చేయండి';
+            }
+        };
+
+        // Function to set language and update UI
+        const setLanguage = (lang) => {
+            currentLanguage = lang;
+            document.body.classList.toggle('lang-te', lang === 'te');
+            document.getElementById('current-lang-display').textContent = lang.toUpperCase();
+            localStorage.setItem('language', lang); // Persist language preference
+            updateTexts();
+        };
+
+        // Event listener for language toggle dropdown
+        document.getElementById('language-toggle-btn').addEventListener('click', () => {
+            document.getElementById('language-dropdown').classList.toggle('hidden');
+        });
+
+        document.querySelectorAll('#language-dropdown a').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                setLanguage(e.target.getAttribute('data-lang-code'));
+                document.getElementById('language-dropdown').classList.add('hidden');
+            });
+        });
+
+        // Initialize language from local storage or default to English
+        const savedLang = localStorage.getItem('language');
+        if (savedLang) {
+            setLanguage(savedLang);
+        } else {
+            setLanguage('en');
+        }
+
+        // --- View Switching Functions ---
+        const hideAllViews = () => {
+            document.querySelectorAll('section > div').forEach(view => view.classList.add('hidden'));
+            document.getElementById('customer-section').classList.add('hidden');
+            document.getElementById('owner-section').classList.add('hidden');
+        };
+
+        const showView = (viewId) => {
+            hideAllViews();
+            document.getElementById(viewId).classList.remove('hidden');
+            // Determine if it's a customer or owner section to show the main container
+            if (viewId.startsWith('customer-')) {
+                document.getElementById('customer-section').classList.remove('hidden');
+            } else if (viewId.startsWith('owner-')) {
+                document.getElementById('owner-section').classList.remove('hidden');
+            }
+
+            // Update active navigation button styles
+            document.querySelectorAll('.customer-nav-btn, .owner-nav-btn').forEach(btn => {
+                btn.classList.remove('bg-yellow-500', 'text-black');
+                btn.classList.add('bg-gray-700', 'text-white');
+            });
+
+            // Highlight the active button
+            let activeBtnId;
+            if (viewId === 'customer-browse-view') activeBtnId = 'customer-browse-btn';
+            else if (viewId === 'customer-cart-view') activeBtnId = 'customer-cart-btn';
+            else if (viewId === 'customer-track-order-view') activeBtnId = 'customer-track-order-btn';
+            else if (viewId === 'customer-past-orders-view') activeBtnId = 'customer-past-orders-btn';
+            else if (viewId === 'customer-contact-view') activeBtnId = 'customer-contact-btn';
+            else if (viewId === 'manage-shops-view') activeBtnId = 'manage-shops-btn';
+            else if (viewId === 'manage-products-view') activeBtnId = 'manage-products-btn';
+            else if (viewId === 'view-orders-view') activeBtnId = 'view-orders-btn';
+            else if (viewId === 'owner-chat-view') activeBtnId = 'owner-chat-btn';
+
+            if (activeBtnId) {
+                const activeBtn = document.getElementById(activeBtnId);
+                if (activeBtn) {
+                    activeBtn.classList.remove('bg-gray-700', 'text-white');
+                    activeBtn.classList.add('bg-yellow-500', 'text-black');
+                }
+            }
+            appState.currentView = viewId;
+        };
+
+        const showCustomerView = () => {
+            document.getElementById('owner-login-btn').classList.remove('bg-yellow-500', 'text-black');
+            document.getElementById('owner-login-btn').classList.add('bg-gray-700', 'text-white');
+            document.getElementById('customer-view-btn').classList.add('bg-yellow-500', 'text-black');
+            document.getElementById('customer-view-btn').classList.remove('bg-gray-700', 'text-white');
+
+            showView('customer-browse-view');
+            // Re-render shops after switching to customer browse view
+            renderCustomerShops(allShopsData, allProductsData);
+            document.getElementById('product-search-input').value = ''; // Clear search on view change
+            document.getElementById('search-no-results').classList.add('hidden');
+        };
+
+        const showOwnerLogin = () => {
+            document.getElementById('customer-view-btn').classList.remove('bg-yellow-500', 'text-black');
+            document.getElementById('customer-view-btn').classList.add('bg-gray-700', 'text-white');
+            document.getElementById('owner-login-btn').classList.add('bg-yellow-500', 'text-black');
+            document.getElementById('owner-login-btn').classList.remove('bg-gray-700', 'text-white');
+
+            document.getElementById('owner-dashboard-view').classList.add('hidden');
+            document.getElementById('owner-login-view').classList.remove('hidden');
+            showView('owner-login-view');
+        };
+
+        const showOwnerDashboard = () => {
+            if (!userId) {
+                console.log("Not logged in as owner.");
+                showOwnerLogin();
+                return;
+            }
+            document.getElementById('owner-login-view').classList.add('hidden');
+            document.getElementById('owner-dashboard-view').classList.remove('hidden');
+            document.getElementById('owner-user-id').textContent = userId; // Display owner's UID
+            showView('manage-shops-view'); // Default owner view
+        };
+
+        // --- Event Listeners for Global UI Controls ---
+        document.getElementById('customer-view-btn').addEventListener('click', showCustomerView);
+        document.getElementById('owner-login-btn').addEventListener('click', showOwnerLogin);
+
+        // Customer navigation
+        document.getElementById('customer-browse-btn').addEventListener('click', () => showCustomerView()); // Call showCustomerView to re-render with search clear
+        document.getElementById('customer-cart-btn').addEventListener('click', () => showView('customer-cart-view'));
+        document.getElementById('customer-track-order-btn').addEventListener('click', () => {
+            document.getElementById('track-order-id-input').value = '';
+            document.getElementById('tracked-order-details').classList.add('hidden');
+            document.getElementById('track-order-message').classList.add('hidden');
+            showView('customer-track-order-view');
+        });
+        document.getElementById('customer-past-orders-btn').addEventListener('click', () => {
+            document.getElementById('past-orders-phone-input').value = '';
+            document.getElementById('past-orders-list').innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.enterYourPhoneNumber}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.enterYourPhoneNumber}</p>`;
+            document.getElementById('past-orders-message').classList.add('hidden');
+            updateTexts(); // Re-apply language for placeholder
+            showView('customer-past-orders-view');
+        });
+        document.getElementById('customer-contact-btn').addEventListener('click', () => showView('customer-contact-view'));
+
+        // Owner navigation
+        document.getElementById('manage-shops-btn').addEventListener('click', () => showView('manage-shops-view'));
+        document.getElementById('manage-products-btn').addEventListener('click', () => {
+            appState.selectedShopId = null; // Clear selected shop when navigating away
+            document.getElementById('select-shop-for-products').value = '';
+            document.getElementById('owner-products-list').innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.selectShopToManageProducts}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.selectShopToManageProducts}</p>`;
+            updateTexts(); // Re-apply language for placeholder
+            showView('manage-products-view');
+        });
+        document.getElementById('view-orders-btn').addEventListener('click', () => showView('view-orders-view'));
+        document.getElementById('owner-chat-btn').addEventListener('click', () => {
+            appState.currentOwnerChatCustomerId = null; // Clear selected chat when navigating away
+            document.getElementById('chat-messages-display').innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.startConversation}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.startConversation}</p>`;
+            document.getElementById('chat-header').innerHTML = `<span data-lang="en">${appState.texts.en.selectConversation}</span><span data-lang="te" class="hidden">${appState.texts.te.selectConversation}</span>`;
+            document.getElementById('chat-input-area').classList.add('hidden');
+            document.getElementById('chat-whatsapp-link').classList.add('hidden');
+            updateTexts(); // Re-apply language for placeholder
+            showView('owner-chat-view');
+        });
+        document.getElementById('owner-logout-btn').addEventListener('click', async () => {
+            showLoading();
+            try {
+                await signOut(auth);
+                showOwnerLogin();
+                showNotificationPopup(currentLanguage === 'en' ? 'Logged out successfully!' : 'విజయవంతంగా లాగ్ అవుట్ అయ్యారు!');
+            } catch (error) {
+                console.error("Error logging out:", error);
+                showNotificationPopup(currentLanguage === 'en' ? `Logout failed: ${error.message}` : `లాగ్ అవుట్ విఫలమైంది: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // --- Firebase Firestore Operations & Real-time Listeners ---
+        let unsubscribeShops = null;
+        let unsubscribeProductsInShops = {}; // Store product listeners per shop
+        let unsubscribeOwnerOrders = null;
+        let unsubscribeOwnerChatConversations = null;
+        let unsubscribeOwnerChatMessages = null;
+
+        const setupRealtimeListeners = () => {
+            if (db) {
+                // Listener for all shops
+                unsubscribeShops = onSnapshot(collection(db, `artifacts/${appId}/public/data/shops`), async (snapshot) => {
+                    const shops = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    allShopsData = shops; // Store globally
+
+                    // Unsubscribe from old product listeners
+                    for (const shopId in unsubscribeProductsInShops) {
+                        unsubscribeProductsInShops[shopId]();
+                    }
+                    unsubscribeProductsInShops = {};
+
+                    // Fetch and listen to products for each shop
+                    let fetchedProducts = [];
+                    for (const shop of shops) {
+                        const productsRef = collection(db, `artifacts/${appId}/public/data/shops/${shop.id}/products`);
+                        // Set up a new real-time listener for products in this shop
+                        unsubscribeProductsInShops[shop.id] = onSnapshot(productsRef, (productSnapshot) => {
+                            const products = productSnapshot.docs.map(doc => ({ shopId: shop.id, ...doc.data() }));
+                            // Update the global allProductsData by replacing products for this specific shop
+                            allProductsData = allProductsData.filter(p => p.shopId !== shop.id).concat(products);
+                            renderCustomerShops(allShopsData, allProductsData); // Re-render customer view
+                        }, (error) => console.error(`Error fetching products for shop ${shop.id}:`, error));
+                    }
+                    // Initial render for shops and products
+                    renderCustomerShops(allShopsData, allProductsData);
+                    populateOwnerProductShopSelect(allShopsData);
+                    renderOwnerShops(allShopsData);
+
+                }, (error) => console.error("Error fetching shops:", error));
+
+                // Owner-specific listeners (only if authenticated)
+                onAuthStateChanged(auth, (user) => {
+                    if (user && userId === user.uid) { // Ensure owner is logged in
+                        // Listener for all customer orders (for owner dashboard)
+                        if (unsubscribeOwnerOrders) unsubscribeOwnerOrders(); // Unsubscribe previous if exists
+                        unsubscribeOwnerOrders = onSnapshot(collection(db, `artifacts/${appId}/public/data/orders`), (snapshot) => {
+                            const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            renderOwnerOrders(orders);
+                            checkForNewOrders(orders);
+                        }, (error) => console.error("Error fetching owner orders:", error));
+
+                        // Listener for chat conversations (for owner inbox)
+                        if (unsubscribeOwnerChatConversations) unsubscribeOwnerChatConversations(); // Unsubscribe previous if exists
+                        unsubscribeOwnerChatConversations = onSnapshot(collection(db, `artifacts/${appId}/public/data/chats`), (snapshot) => {
+                            const conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                            renderOwnerChatConversations(conversations);
+                        }, (error) => console.error("Error fetching owner chat conversations:", error));
+                    } else {
+                        // If not owner, unsubscribe owner specific listeners
+                        if (unsubscribeOwnerOrders) { unsubscribeOwnerOrders(); unsubscribeOwnerOrders = null; }
+                        if (unsubscribeOwnerChatConversations) { unsubscribeOwnerChatConversations(); unsubscribeOwnerChatConversations = null; }
+                        if (unsubscribeOwnerChatMessages) { unsubscribeOwnerChatMessages(); unsubscribeOwnerChatMessages = null; }
+                        appState.ownerNewOrdersCount = 0;
+                        updateNotificationBell();
+                    }
+                });
+            }
+        };
+
+        // --- Customer Side Functions ---
+
+        // Render shops and their products for customer view
+        const renderCustomerShops = (shops, productsToDisplay = allProductsData) => {
+            const shopsListDiv = document.getElementById('shops-list');
+            shopsListDiv.innerHTML = '';
+            document.getElementById('search-no-results').classList.add('hidden');
+
+            if (shops.length === 0) {
+                shopsListDiv.innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.noShopsAvailable}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.noShopsAvailable}</p>`;
+                updateTexts();
+                return;
+            }
+
+            let hasMatchingProducts = false;
+            // Group products by shop
+            const productsByShop = productsToDisplay.reduce((acc, product) => {
+                if (!acc[product.shopId]) {
+                    acc[product.shopId] = [];
+                }
+                acc[product.shopId].push(product);
+                return acc;
+            }, {});
+
+            const sortedShops = [...shops].sort((a, b) => a.name.localeCompare(b.name));
+
+            for (const shop of sortedShops) {
+                const productsInThisShop = productsByShop[shop.id] || [];
+                productsInThisShop.sort((a, b) => a.name.localeCompare(b.name)); // Sort products by name
+
+                if (productsInThisShop.length > 0) {
+                    hasMatchingProducts = true;
+                }
+
+                let productsHtml = productsInThisShop.map(product => `
+                    <div class="bg-gray-700 p-4 rounded-lg shadow-md flex flex-col justify-between h-full">
+                        <img src="${product.imageUrl || `https://placehold.co/400x300/333333/EEEEEE?text=${product.name.substring(0, 10)}`}" alt="${product.name}" class="w-full h-32 object-cover rounded-md mb-3">
+                        <div>
+                            <h4 class="text-xl font-semibold text-yellow-300">${product.name}</h4>
+                            <p class="text-gray-300 text-sm mb-2">${product.description || ''}</p>
+                            <p class="text-lg font-bold text-yellow-500 mb-2">₹${product.price.toFixed(2)}</p>
+                            <p class="text-sm ${product.inStock ? 'text-green-400' : 'text-red-400'}">
+                                <span data-lang="en">${product.inStock ? appState.texts.en.inStock : appState.texts.en.outOfStock}</span>
+                                <span data-lang="te" class="hidden">${product.inStock ? appState.texts.te.inStock : appState.texts.te.outOfStock}</span>
+                            </p>
+                        </div>
+                        <button class="mt-4 w-full bg-yellow-500 text-black px-4 py-2 rounded-full glow-button hover:bg-yellow-400 font-semibold add-to-cart-btn ${product.inStock ? '' : 'opacity-50 cursor-not-allowed'}"
+                                ${product.inStock ? '' : 'disabled'}
+                                data-product-id="${product.id}" data-product-name="${product.name}" data-product-price="${product.price}" data-shop-id="${shop.id}" data-shop-name="${shop.name}">
+                            <span data-lang="en">${appState.texts.en.addToCart}</span>
+                            <span data-lang="te" class="hidden">${appState.texts.te.addToCart}</span>
+                        </button>
+                    </div>
+                `).join('');
+
+                if (productsInThisShop.length > 0) {
+                    shopsListDiv.innerHTML += `
+                        <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                            <h3 class="text-2xl font-bold text-yellow-500 mb-4">${shop.name}</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                ${productsHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            if (!hasMatchingProducts && document.getElementById('product-search-input').value.trim() !== '') {
+                document.getElementById('search-no-results').classList.remove('hidden');
+            }
+
+            updateTexts(); // Apply language for newly rendered elements
+            addAddToCartListeners(); // Re-add listeners after re-rendering
+        };
+
+        // Product Search Functionality
+        const performProductSearch = () => {
+            const searchQuery = document.getElementById('product-search-input').value.trim().toLowerCase();
+            if (searchQuery === '') {
+                renderCustomerShops(allShopsData, allProductsData); // Show all products if search is empty
+                return;
+            }
+
+            const filteredProducts = allProductsData.filter(product => {
+                const productName = product.name ? product.name.toLowerCase() : '';
+                const productDescription = product.description ? product.description.toLowerCase() : '';
+                return productName.includes(searchQuery) || productDescription.includes(searchQuery);
+            });
+
+            // Re-render only shops that contain the filtered products
+            const shopsWithFilteredProducts = allShopsData.filter(shop =>
+                filteredProducts.some(product => product.shopId === shop.id)
+            );
+
+            renderCustomerShops(shopsWithFilteredProducts, filteredProducts);
+        };
+
+        document.getElementById('product-search-btn').addEventListener('click', performProductSearch);
+        document.getElementById('product-search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performProductSearch();
+            }
+        });
+
+
+        // Add to cart functionality
+        const addAddToCartListeners = () => {
+            document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                button.onclick = null; // Remove old listeners to prevent duplicates
+                button.addEventListener('click', (e) => {
+                    const productId = e.target.dataset.productId;
+                    const productName = e.target.dataset.productName;
+                    const productPrice = parseFloat(e.target.dataset.productPrice);
+                    const shopId = e.target.dataset.shopId;
+                    const shopName = e.target.dataset.shopName;
+
+                    if (cart[productId]) {
+                        cart[productId].quantity++;
+                    } else {
+                        cart[productId] = {
+                            id: productId,
+                            name: productName,
+                            price: productPrice,
+                            shopId: shopId,
+                            shopName: shopName,
+                            quantity: 1
+                        };
+                    }
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    updateCartDisplay();
+                    showNotificationPopup(currentLanguage === 'en' ? `${productName} added to cart!` : `${productName} కార్ట్‌కు జోడించబడింది!`);
+                });
+            });
+        };
+
+        // Update cart display (count and items in cart view)
+        const updateCartDisplay = async () => {
+            const cartItemsDiv = document.getElementById('cart-items');
+            cartItemsDiv.innerHTML = '';
+            let subtotal = 0;
+            let deliveryCharge = 0;
+
+            const cartItemCount = Object.keys(cart).length;
+            document.getElementById('cart-item-count').textContent = cartItemCount;
+            document.getElementById('cart-item-count-te').textContent = cartItemCount; // Update Telugu count too
+
+            if (cartItemCount === 0) {
+                cartItemsDiv.innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.yourCartIsEmpty}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.yourCartIsEmpty}</p>`;
+                document.getElementById('place-order-btn').classList.add('hidden');
+                updateTexts();
+                document.getElementById('cart-subtotal').textContent = '0.00';
+                document.getElementById('cart-delivery-charge').textContent = '0.00';
+                document.getElementById('cart-total').textContent = '0.00';
+                return;
+            } else {
+                document.getElementById('place-order-btn').classList.remove('hidden');
+            }
+
+            for (const productId in cart) {
+                const item = cart[productId];
+                const itemTotal = item.price * item.quantity;
+                subtotal += itemTotal;
+
+                cartItemsDiv.innerHTML += `
+                    <div class="flex items-center justify-between bg-gray-700 p-4 rounded-lg shadow-sm">
+                        <div>
+                            <h4 class="text-lg font-semibold text-yellow-300">${item.name} (${item.shopName})</h4>
+                            <p class="text-gray-300">₹${item.price.toFixed(2)} x ${item.quantity} = ₹${itemTotal.toFixed(2)}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button class="bg-gray-600 text-white px-3 py-1 rounded-full hover:bg-gray-500 decrease-qty-btn" data-product-id="${item.id}">-</button>
+                            <span class="text-lg font-bold">${item.quantity}</span>
+                            <button class="bg-gray-600 text-white px-3 py-1 rounded-full hover:bg-gray-500 increase-qty-btn" data-product-id="${item.id}">+</button>
+                            <button class="bg-red-600 text-white px-3 py-1 rounded-full hover:bg-red-500 remove-from-cart-btn" data-product-id="${item.id}">
+                                <span data-lang="en">${appState.texts.en.remove}</span>
+                                <span data-lang="te" class="hidden">${appState.texts.te.remove}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Temporarily store subtotal for place order process
+            appState.cartSubtotal = subtotal;
+
+            document.getElementById('cart-subtotal').textContent = subtotal.toFixed(2);
+            document.getElementById('cart-total').textContent = (subtotal + deliveryCharge).toFixed(2); // Initial total without dynamic delivery charge
+            updateTexts();
+
+            // Add event listeners for quantity and remove buttons
+            document.querySelectorAll('.decrease-qty-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.target.dataset.productId;
+                    if (cart[productId].quantity > 1) {
+                        cart[productId].quantity--;
+                    } else {
+                        delete cart[productId];
+                    }
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    updateCartDisplay();
+                });
+            });
+
+            document.querySelectorAll('.increase-qty-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.target.dataset.productId;
+                    cart[productId].quantity++;
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    updateCartDisplay();
+                });
+            });
+
+            document.querySelectorAll('.remove-from-cart-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.target.dataset.productId;
+                    delete cart[productId];
+                    localStorage.setItem('cart', JSON.stringify(cart));
+                    updateCartDisplay();
+                    showNotificationPopup(currentLanguage === 'en' ? 'Item removed from cart.' : 'కార్ట్ నుండి వస్తువు తీసివేయబడింది.');
+                });
+            });
+        };
+
+        // Place Order button opens modal
+        document.getElementById('place-order-btn').addEventListener('click', async () => {
+            // Check if cart is empty before proceeding
+            if (Object.keys(cart).length === 0) {
+                showNotificationPopup(currentLanguage === 'en' ? 'Your cart is empty. Please add items before placing an order.' : 'మీ కార్ట్ ఖాళీగా ఉంది. దయచేసి ఆర్డర్ చేయడానికి ముందు వస్తువులను జోడించండి.');
+                return;
+            }
+
+            document.getElementById('location-permission-modal').classList.remove('hidden');
+        });
+
+        document.getElementById('allow-location-btn').addEventListener('click', () => {
+            document.getElementById('location-permission-modal').classList.add('hidden');
+            requestLocationAndProceed(true);
+        });
+
+        document.getElementById('deny-location-btn').addEventListener('click', () => {
+            document.getElementById('location-permission-modal').classList.add('hidden');
+            requestLocationAndProceed(false);
+        });
+
+        const requestLocationAndProceed = async (allowLocation) => {
+            showLoading();
+            let customerLocation = null;
+            let deliveryCharge = DEFAULT_DELIVERY_CHARGE_NO_LOCATION; // Default high charge if no location
+
+            if (allowLocation && navigator.geolocation) {
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        });
+                    });
+                    customerLocation = {
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude
+                    };
+                    deliveryCharge = calculateDeliveryCharge(customerLocation.lat, customerLocation.lon);
+                    showNotificationPopup(currentLanguage === 'en' ? `Location obtained. Delivery charge: ₹${deliveryCharge.toFixed(2)}` : `స్థానం పొందబడింది. డెలివరీ ఛార్జ్: ₹${deliveryCharge.toFixed(2)}`);
+                } catch (error) {
+                    console.error("Error getting geolocation:", error);
+                    showNotificationPopup(currentLanguage === 'en' ? `Could not get location. Applying default delivery charge. (${error.message})` : `స్థానాన్ని పొందలేము. డిఫాల్ట్ డెలివరీ ఛార్జ్ వర్తింపజేయబడింది. (${error.message})`);
+                }
+            } else if (!allowLocation) {
+                 showNotificationPopup(currentLanguage === 'en' ? `Location access denied. Applying higher default delivery charge: ₹${DEFAULT_DELIVERY_CHARGE_NO_LOCATION.toFixed(2)}` : `స్థాన యాక్సెస్ నిరాకరించబడింది. అధిక డిఫాల్ట్ డెలివరీ ఛార్జ్ వర్తింపజేయబడింది: ₹${DEFAULT_DELIVERY_CHARGE_NO_LOCATION.toFixed(2)}`);
+            } else {
+                showNotificationPopup(currentLanguage === 'en' ? 'Geolocation is not supported by your browser. Applying default delivery charge.' : 'మీ బ్రౌజర్ జియోలోకేషన్‌కు మద్దతు ఇవ్వదు. డిఫాల్ట్ డెలివరీ ఛార్జ్ వర్తింపజేయబడింది.');
+            }
+
+            appState.currentDeliveryCharge = deliveryCharge;
+            document.getElementById('cart-delivery-charge').textContent = deliveryCharge.toFixed(2);
+            document.getElementById('cart-total').textContent = (appState.cartSubtotal + deliveryCharge).toFixed(2);
+
+            document.getElementById('place-order-modal').classList.remove('hidden');
+            hideLoading();
+        };
+
+        // Haversine formula to calculate distance between two lat/lon points in km
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of Earth in kilometers
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in km
+        }
+
+        const calculateDeliveryCharge = (customerLat, customerLon) => {
+            const distance = getDistance(storeLocation.lat, storeLocation.lon, customerLat, customerLon);
+            console.log(`Calculated distance: ${distance.toFixed(2)} km`);
+
+            for (const tier of DELIVERY_CHARGE_TIERS) {
+                if (distance <= tier.distanceKm) {
+                    return tier.charge;
+                }
+            }
+            return DEFAULT_DELIVERY_CHARGE_NO_LOCATION; // Fallback, though Infinity tier should catch it
+        };
+
+
+        document.getElementById('cancel-order-modal-btn').addEventListener('click', () => {
+            document.getElementById('place-order-modal').classList.add('hidden');
+        });
+
+        // Handle order form submission
+        document.getElementById('order-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading();
+
+            const customerPhone = document.getElementById('customer-phone').value.trim();
+            const customerAddress = document.getElementById('customer-address').value.trim();
+
+            if (!customerPhone || !customerAddress || Object.keys(cart).length === 0) {
+                showNotificationPopup(currentLanguage === 'en' ? 'Please fill all details and ensure cart is not empty.' : 'దయచేసి అన్ని వివరాలను పూరించండి మరియు కార్ట్ ఖాళీగా లేదని నిర్ధారించుకోండి.');
+                hideLoading();
+                return;
+            }
+
+            const orderItems = Object.values(cart).map(item => ({
+                productId: item.id,
+                productName: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                shopId: item.shopId,
+                shopName: item.shopName
+            }));
+            const subtotalAmount = appState.cartSubtotal;
+            const deliveryCharge = appState.currentDeliveryCharge;
+            const totalAmount = subtotalAmount + deliveryCharge;
+
+
+            const orderId = 'ORD-' + Date.now().toString().slice(-6) + Math.random().toString(36).substring(2, 6).toUpperCase(); // Simple unique ID
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/orders`), {
+                    orderId: orderId,
+                    customerPhone: customerPhone,
+                    deliveryAddress: customerAddress,
+                    items: orderItems,
+                    subtotalAmount: subtotalAmount,
+                    deliveryCharge: deliveryCharge,
+                    totalAmount: totalAmount,
+                    status: 'Processing',
+                    orderDate: serverTimestamp() // Use server timestamp
+                });
+
+                cart = {}; // Clear cart after order
+                localStorage.removeItem('cart');
+                updateCartDisplay();
+                document.getElementById('place-order-modal').classList.add('hidden');
+                document.getElementById('customer-phone').value = '';
+                document.getElementById('customer-address').value = '';
+
+                document.getElementById('displayed-order-id').textContent = orderId;
+                document.getElementById('order-confirmation-modal').classList.remove('hidden');
+                showNotificationPopup(currentLanguage === 'en' ? `Order ${orderId} placed!` : `ఆర్డర్ ${orderId} ఉంచబడింది!`);
+
+            } catch (error) {
+                console.error("Error placing order:", error);
+                showNotificationPopup(currentLanguage === 'en' ? `Failed to place order: ${error.message}` : `ఆర్డర్ చేయడంలో విఫలమైంది: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        document.getElementById('close-confirmation-modal-btn').addEventListener('click', () => {
+            document.getElementById('order-confirmation-modal').classList.add('hidden');
+            showCustomerView(); // Go back to browse after confirmation, clears search
+        });
+
+        // Track Order functionality
+        document.getElementById('track-order-btn').addEventListener('click', async () => {
+            showLoading();
+            const orderIdToTrack = document.getElementById('track-order-id-input').value.trim();
+            const trackedOrderDetailsDiv = document.getElementById('tracked-order-details');
+            const trackOrderMessage = document.getElementById('track-order-message');
+
+            trackedOrderDetailsDiv.classList.add('hidden');
+            trackOrderMessage.classList.add('hidden');
+
+            if (!orderIdToTrack) {
+                trackOrderMessage.classList.remove('hidden');
+                trackOrderMessage.innerHTML = `<span data-lang="en">Please enter an Order ID.</span><span data-lang="te" class="hidden">దయచేసి ఆర్డర్ ఐడిని నమోదు చేయండి.</span>`;
+                updateTexts();
+                hideLoading();
+                return;
+            }
+
+            try {
+                // Fetch order by orderId field
+                const ordersRef = collection(db, `artifacts/${appId}/public/data/orders`);
+                const q = query(ordersRef, where('orderId', '==', orderIdToTrack));
+                const querySnapshot = await getDocs(q);
+
+                if (!querySnapshot.empty) {
+                    const orderDoc = querySnapshot.docs[0];
+                    const orderData = orderDoc.data();
+
+                    document.getElementById('tracked-order-id').textContent = orderData.orderId;
+                    document.getElementById('tracked-order-status').textContent = appState.texts[currentLanguage][orderData.status.toLowerCase().replace(/\s/g, '')] || orderData.status;
+                    document.getElementById('tracked-delivery-charge').textContent = (orderData.deliveryCharge || 0).toFixed(2);
+                    document.getElementById('tracked-order-date').textContent = orderData.orderDate ? new Date(orderData.orderDate.toDate()).toLocaleString() : 'N/A';
+
+                    const trackedOrderItemsList = document.getElementById('tracked-order-items');
+                    trackedOrderItemsList.innerHTML = '';
+                    orderData.items.forEach(item => {
+                        trackedOrderItemsList.innerHTML += `<li>${item.productName} (${item.shopName}) - ${item.quantity} x ₹${item.price.toFixed(2)}</li>`;
+                    });
+                    trackedOrderDetailsDiv.classList.remove('hidden');
+                } else {
+                    trackOrderMessage.classList.remove('hidden');
+                    trackOrderMessage.innerHTML = `<span data-lang="en">${appState.texts.en.orderNotFound}</span><span data-lang="te" class="hidden">${appState.texts.te.orderNotFound}</span>`;
+                    updateTexts();
+                }
+            } catch (error) {
+                console.error("Error tracking order:", error);
+                trackOrderMessage.classList.remove('hidden');
+                trackOrderMessage.innerHTML = `<span data-lang="en">Error tracking order: ${error.message}</span><span data-lang="te" class="hidden">ఆర్డర్‌ను ట్రాక్ చేయడంలో లోపం: ${error.message}</span>`;
+                updateTexts();
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // View Past Orders functionality
+        document.getElementById('view-past-orders-btn').addEventListener('click', async () => {
+            showLoading();
+            const phoneNumber = document.getElementById('past-orders-phone-input').value.trim();
+            const pastOrdersListDiv = document.getElementById('past-orders-list');
+            const pastOrdersMessage = document.getElementById('past-orders-message');
+
+            pastOrdersListDiv.innerHTML = '';
+            pastOrdersMessage.classList.add('hidden');
+
+            if (!phoneNumber) {
+                pastOrdersMessage.classList.remove('hidden');
+                pastOrdersMessage.innerHTML = `<span data-lang="en">${appState.texts.en.pleaseEnterPhoneNumber}</span><span data-lang="te" class="hidden">${appState.texts.te.pleaseEnterPhoneNumber}</span>`;
+                updateTexts();
+                hideLoading();
+                return;
+            }
+
+            try {
+                const ordersRef = collection(db, `artifacts/${appId}/public/data/orders`);
+                const q = query(ordersRef, where('customerPhone', '==', phoneNumber));
+                const querySnapshot = await getDocs(q);
+
+                if (!querySnapshot.empty) {
+                    const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    // Sort orders by date descending
+                    orders.sort((a, b) => (b.orderDate ? b.orderDate.toDate().getTime() : 0) - (a.orderDate ? a.orderDate.toDate().getTime() : 0));
+
+                    orders.forEach(order => {
+                        const itemsList = order.items.map(item => `<li>${item.productName} (${item.shopName}) - ${item.quantity} x ₹${item.price.toFixed(2)}</li>`).join('');
+                        pastOrdersListDiv.innerHTML += `
+                            <div class="bg-gray-700 p-4 rounded-lg shadow-md">
+                                <p class="text-lg mb-1"><span data-lang="en">Order ID:</span> <span data-lang="te" class="hidden">ఆర్డర్ ఐడి:</span> <strong class="text-yellow-300">${order.orderId}</strong></p>
+                                <p class="mb-1"><span data-lang="en">Status:</span> <span data-lang="te" class="hidden">స్థితి:</span> <span class="text-green-400">${appState.texts[currentLanguage][order.status.toLowerCase().replace(/\s/g, '')] || order.status}</span></p>
+                                <p class="mb-1"><span data-lang="en">Subtotal: ₹</span> <span data-lang="te" class="hidden">ఉపమొత్తం: ₹</span> <strong class="text-yellow-400">${(order.subtotalAmount || 0).toFixed(2)}</strong></p>
+                                <p class="mb-1"><span data-lang="en">Delivery Charge: ₹</span> <span data-lang="te" class="hidden">డెలివరీ ఛార్జ్: ₹</span> <strong class="text-yellow-400">${(order.deliveryCharge || 0).toFixed(2)}</strong></p>
+                                <p class="mb-2"><span data-lang="en">Total: ₹</span> <span data-lang="te" class="hidden">మొత్తం: ₹</span> <strong class="text-yellow-400">${order.totalAmount.toFixed(2)}</strong></p>
+                                <p class="text-sm text-gray-400 mb-2"><span data-lang="en">Ordered on:</span> <span data-lang="te" class="hidden">ఆర్డర్ చేయబడింది:</span> ${order.orderDate ? new Date(order.orderDate.toDate()).toLocaleString() : 'N/A'}</p>
+                                <h5 class="text-md font-semibold text-yellow-300 mt-2 mb-1">
+                                    <span data-lang="en">Items:</span>
+                                    <span data-lang="te" class="hidden">వస్తువులు:</span>
+                                </h4>
+                                <ul class="list-disc pl-5 text-gray-300 text-sm mb-4">${itemsList}</ul>
+                                <button class="bg-blue-600 text-white px-4 py-2 rounded-full glow-button hover:bg-blue-500 font-semibold text-sm download-bill-btn" data-order-id="${order.id}">
+                                    <i class="fas fa-file-pdf mr-2"></i>
+                                    <span data-lang="en">Download Bill (PDF)</span>
+                                    <span data-lang="te" class="hidden">బిల్లును డౌన్‌లోడ్ చేయండి (PDF)</span>
+                                </button>
+                            </div>
+                        `;
+                    });
+                    addDownloadBillListeners(); // Attach listeners to new buttons
+                    updateTexts();
+                } else {
+                    pastOrdersMessage.classList.remove('hidden');
+                    pastOrdersMessage.innerHTML = `<span data-lang="en">${appState.texts.en.noOrdersForPhone}</span><span data-lang="te" class="hidden">${appState.texts.te.noOrdersForPhone}</span>`;
+                    updateTexts();
+                }
+            } catch (error) {
+                console.error("Error viewing past orders:", error);
+                pastOrdersMessage.classList.remove('hidden');
+                pastOrdersMessage.innerHTML = `<span data-lang="en">Error fetching past orders: ${error.message}</span><span data-lang="te" class="hidden">గత ఆర్డర్‌లను పొందడంలో లోపం: ${error.message}</span>`;
+                updateTexts();
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // PDF Bill Generation
+        const addDownloadBillListeners = () => {
+            document.querySelectorAll('.download-bill-btn').forEach(button => {
+                button.onclick = null; // Remove old listeners
+                button.addEventListener('click', async (e) => {
+                    showLoading();
+                    const orderFirestoreId = e.target.dataset.orderId;
+                    try {
+                        const orderDocRef = doc(db, `artifacts/${appId}/public/data/orders`, orderFirestoreId);
+                        const orderSnap = await getDoc(orderDocRef);
+
+                        if (!orderSnap.exists()) {
+                            showNotificationPopup(currentLanguage === 'en' ? 'Order not found for PDF generation.' : 'PDF జనరేషన్ కోసం ఆర్డర్ కనుగొనబడలేదు.');
+                            hideLoading();
+                            return;
+                        }
+
+                        const orderData = orderSnap.data();
+
+                        // Construct HTML for the bill
+                        let billContentHtml = `
+                            <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #333; background-color: #f9f9f9; border: 1px solid #ddd; max-width: 600px; margin: 20px auto; border-radius: 8px;">
+                                <h1 style="color: #FFD700; text-align: center; margin-bottom: 20px; font-size: 28px;">Stellar Marketplace - Bill</h1>
+                                <p style="text-align: center; margin-bottom: 30px; font-size: 14px; color: #666;">Thank you for your purchase!</p>
+
+                                <div style="background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    <h2 style="font-size: 20px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px;">Order Details</h2>
+                                    <p style="margin-bottom: 8px;"><strong>Order ID:</strong> ${orderData.orderId}</p>
+                                    <p style="margin-bottom: 8px;"><strong>Customer Phone:</strong> ${orderData.customerPhone}</p>
+                                    <p style="margin-bottom: 8px;"><strong>Delivery Address:</strong> ${orderData.deliveryAddress}</p>
+                                    <p style="margin-bottom: 8px;"><strong>Order Date:</strong> ${orderData.orderDate ? new Date(orderData.orderDate.toDate()).toLocaleString() : 'N/A'}</p>
+                                    <p style="margin-bottom: 8px;"><strong>Status:</strong> ${orderData.status}</p>
+
+                                    <h3 style="font-size: 18px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-top: 20px; margin-bottom: 15px;">Items:</h3>
+                                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                        <thead>
+                                            <tr style="background-color: #f2f2f2;">
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Product</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Shop</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Price</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Qty</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${orderData.items.map(item => `
+                                                <tr>
+                                                    <td style="padding: 8px; border: 1px solid #ddd;">${item.productName}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd;">${item.shopName}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₹${item.price.toFixed(2)}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+                                                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">₹${(item.price * item.quantity).toFixed(2)}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="4" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Subtotal:</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">₹${(orderData.subtotalAmount || 0).toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Delivery Charge:</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">₹${(orderData.deliveryCharge || 0).toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4" style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">Total:</td>
+                                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #FFD700;">₹${orderData.totalAmount.toFixed(2)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                    <p style="text-align: center; font-size: 12px; color: #888; margin-top: 20px;">This is a computer generated bill and does not require a signature.</p>
+                                </div>
+                            </div>
+                        `;
+
+                        // Create a temporary div to render the HTML
+                        const tempDiv = document.createElement('div');
+                        tempDiv.style.position = 'absolute';
+                        tempDiv.style.left = '-9999px'; // Off-screen
+                        tempDiv.style.top = '-9999px';
+                        tempDiv.style.width = '794px'; // A4 width at 96 DPI
+                        tempDiv.innerHTML = billContentHtml;
+                        document.body.appendChild(tempDiv);
+
+                        const { jsPDF } = window.jspdf;
+                        const canvas = await html2canvas(tempDiv, { scale: 2 }); // Higher scale for better quality
+
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new jsPDF('p', 'mm', 'a4'); // Portrait, millimeters, A4 size
+                        const imgWidth = 210; // A4 width in mm
+                        const pageHeight = pdf.internal.pageSize.height;
+                        const imgHeight = canvas.height * imgWidth / canvas.width;
+                        let heightLeft = imgHeight;
+                        let position = 0;
+
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+
+                        while (heightLeft >= 0) {
+                            position = heightLeft - imgHeight;
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                            heightLeft -= pageHeight;
+                        }
+
+                        pdf.save(`bill-${orderData.orderId}.pdf`);
+                        document.body.removeChild(tempDiv); // Clean up temporary div
+                        showNotificationPopup(currentLanguage === 'en' ? 'Bill downloaded successfully!' : 'బిల్లు విజయవంతంగా డౌన్‌లోడ్ చేయబడింది!');
+
+                    } catch (error) {
+                        console.error("Error generating PDF:", error);
+                        showNotificationPopup(currentLanguage === 'en' ? `Failed to download bill: ${error.message}` : `బిల్లును డౌన్‌లోడ్ చేయడంలో విఫలమైంది: ${error.message}`);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            });
+        };
+
+        // Contact Owner functionality
+        document.getElementById('call-owner-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = `tel:${ownerPhoneNumber}`;
+        });
+
+        document.getElementById('whatsapp-owner-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            const message = encodeURIComponent(currentLanguage === 'en' ? "Hello, I have a question about my order." : "హలో, నా ఆర్డర్ గురించి నాకు ఒక ప్రశ్న ఉంది.");
+            window.open(`https://wa.me/${ownerPhoneNumber}?text=${message}`, '_blank');
+        });
+
+        // --- Owner Side Functions ---
+
+        // Google Sign-In for Owner
+        document.getElementById('google-sign-in-btn').addEventListener('click', async () => {
+            showLoading();
+            const provider = new GoogleAuthProvider();
+            try {
+                const result = await signInWithPopup(auth, provider);
+                // User is signed in. The onAuthStateChanged listener will handle UI update.
+                console.log("Google Sign-In successful:", result.user);
+                showNotificationPopup(currentLanguage === 'en' ? 'Signed in as owner!' : 'ఓనర్‌గా సైన్ ఇన్ చేయబడింది!');
+            } catch (error) {
+                console.error("Error during Google Sign-In:", error);
+                showNotificationPopup(currentLanguage === 'en' ? `Google Sign-In failed: ${error.message}` : `Google సైన్-ఇన్ విఫలమైంది: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Render shops for owner to manage
+        const renderOwnerShops = (shops) => {
+            const ownerShopsListDiv = document.getElementById('owner-shops-list');
+            ownerShopsListDiv.innerHTML = '';
+            if (shops.length === 0) {
+                ownerShopsListDiv.innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.noShopsFoundAddOne}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.noShopsFoundAddOne}</p>`;
+                updateTexts();
+                return;
+            }
+
+            shops.sort((a, b) => a.name.localeCompare(b.name)); // Sort by name
+
+            shops.forEach(shop => {
+                ownerShopsListDiv.innerHTML += `
+                    <div class="bg-gray-700 p-4 rounded-lg shadow-md flex items-center justify-between">
+                        <span class="text-lg font-semibold text-yellow-300">${shop.name}</span>
+                        <div class="flex space-x-2">
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded-full glow-button hover:bg-blue-500 font-semibold text-sm edit-shop-btn" data-shop-id="${shop.id}" data-shop-name="${shop.name}" data-shop-image-url="${shop.imageUrl || ''}">
+                                <i class="fas fa-edit mr-1"></i>
+                                <span data-lang="en">Edit</span>
+                                <span data-lang="te" class="hidden">సవరించండి</span>
+                            </button>
+                            <button class="bg-red-600 text-white px-4 py-2 rounded-full glow-button hover:bg-red-500 font-semibold text-sm delete-shop-btn" data-shop-id="${shop.id}" data-shop-name="${shop.name}">
+                                <i class="fas fa-trash-alt mr-1"></i>
+                                <span data-lang="en">Delete</span>
+                                <span data-lang="te" class="hidden">తొలగించండి</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            updateTexts();
+            addShopManagementListeners();
+        };
+
+        // Add/Edit Shop Modal Management
+        document.getElementById('add-shop-btn').addEventListener('click', () => {
+            document.getElementById('shop-modal-title').innerHTML = `<span data-lang="en">${appState.texts.en.addShop}</span><span data-lang="te" class="hidden">${appState.texts.te.addShop}</span>`;
+            document.getElementById('shop-id-field').value = '';
+            document.getElementById('shop-name').value = '';
+            document.getElementById('shop-image-url').value = ''; // Clear image URL field
+            document.getElementById('shop-modal').classList.remove('hidden');
+            updateTexts();
+        });
+
+        document.getElementById('cancel-shop-modal-btn').addEventListener('click', () => {
+            document.getElementById('shop-modal').classList.add('hidden');
+        });
+
+        const addShopManagementListeners = () => {
+            document.querySelectorAll('.edit-shop-btn').forEach(button => {
+                button.onclick = null;
+                button.addEventListener('click', (e) => {
+                    const shopId = e.currentTarget.dataset.shopId;
+                    const shopName = e.currentTarget.dataset.shopName;
+                    const shopImageUrl = e.currentTarget.dataset.shopImageUrl || '';
+                    document.getElementById('shop-modal-title').innerHTML = `<span data-lang="en">${appState.texts.en.editShop}</span><span data-lang="te" class="hidden">${appState.texts.te.editShop}</span>`;
+                    document.getElementById('shop-id-field').value = shopId;
+                    document.getElementById('shop-name').value = shopName;
+                    document.getElementById('shop-image-url').value = shopImageUrl;
+                    document.getElementById('shop-modal').classList.remove('hidden');
+                    updateTexts();
+                });
+            });
+
+            document.querySelectorAll('.delete-shop-btn').forEach(button => {
+                button.onclick = null;
+                button.addEventListener('click', async (e) => {
+                    if (confirm(currentLanguage === 'en' ? 'Are you sure you want to delete this shop and all its products?' : 'మీరు ఈ దుకాణం మరియు దాని ఉత్పత్తులన్నింటినీ తొలగించాలనుకుంటున్నారా?')) {
+                        showLoading();
+                        const shopId = e.currentTarget.dataset.shopId;
+                        try {
+                            // Delete products subcollection first (Firestore doesn't auto-delete subcollections)
+                            const productsToDeleteQuery = query(collection(db, `artifacts/${appId}/public/data/shops/${shopId}/products`));
+                            const productDocs = await getDocs(productsToDeleteQuery);
+                            const deletePromises = productDocs.docs.map(d => deleteDoc(doc(db, `artifacts/${appId}/public/data/shops/${shopId}/products`, d.id)));
+                            await Promise.all(deletePromises);
+
+                            // Then delete the shop document
+                            await deleteDoc(doc(db, `artifacts/${appId}/public/data/shops`, shopId));
+                            showNotificationPopup(currentLanguage === 'en' ? 'Shop deleted successfully!' : 'దుకాణం విజయవంతంగా తొలగించబడింది!');
+                        } catch (error) {
+                            console.error("Error deleting shop:", error);
+                            showNotificationPopup(currentLanguage === 'en' ? `Failed to delete shop: ${error.message}` : `దుకాణాన్ని తొలగించడంలో విఫలమైంది: ${error.message}`);
+                        } finally {
+                            hideLoading();
+                        }
+                    }
+                });
+            });
+        };
+
+        // Handle Add/Edit Shop form submission
+        document.getElementById('shop-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading();
+
+            const shopId = document.getElementById('shop-id-field').value;
+            const shopName = document.getElementById('shop-name').value.trim();
+            const shopImageUrl = document.getElementById('shop-image-url').value.trim();
+
+            if (!shopName) {
+                showNotificationPopup(currentLanguage === 'en' ? 'Shop name cannot be empty.' : 'దుకాణం పేరు ఖాళీగా ఉండకూడదు.');
+                hideLoading();
+                return;
+            }
+
+            try {
+                const shopData = { name: shopName };
+                if (shopImageUrl) {
+                    shopData.imageUrl = shopImageUrl;
+                } else {
+                    // If image URL is cleared, remove the field from Firestore
+                    shopData.imageUrl = ''; // Or omit if using updateDoc carefully
+                }
+
+                if (shopId) {
+                    // Edit existing shop
+                    await updateDoc(doc(db, `artifacts/${appId}/public/data/shops`, shopId), shopData);
+                    showNotificationPopup(currentLanguage === 'en' ? 'Shop updated successfully!' : 'దుకాణం విజయవంతంగా నవీకరించబడింది!');
+                } else {
+                    // Add new shop
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/shops`), shopData);
+                    showNotificationPopup(currentLanguage === 'en' ? 'Shop added successfully!' : 'దుకాణం విజయవంతంగా జోడించబడింది!');
+                }
+                document.getElementById('shop-modal').classList.add('hidden');
+            } catch (error) {
+                console.error("Error saving shop:", error);
+                showNotificationPopup(currentLanguage === 'en' ? `Failed to save shop: ${error.message}` : `దుకాణాన్ని సేవ్ చేయడంలో విఫలమైంది: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Populate Shop Select for Products management
+        const populateOwnerProductShopSelect = (shops) => {
+            const selectElement = document.getElementById('select-shop-for-products');
+            const currentSelectedValue = selectElement.value; // Preserve selection
+            selectElement.innerHTML = `<option value="">-- <span data-lang="en">${appState.texts.en.selectShop}</span> --</option><option value="" class="hidden" data-lang="te">-- ${appState.texts.te.selectShop} --</option>`;
+
+            shops.sort((a, b) => a.name.localeCompare(b.name));
+
+            shops.forEach(shop => {
+                const option = document.createElement('option');
+                option.value = shop.id;
+                option.textContent = shop.name;
+                selectElement.appendChild(option);
+            });
+            updateTexts(); // Apply language to the newly added option
+
+            if (currentSelectedValue && shops.some(s => s.id === currentSelectedValue)) {
+                selectElement.value = currentSelectedValue;
+            } else if (appState.selectedShopId) {
+                 selectElement.value = appState.selectedShopId; // Re-select if shop was selected before refresh
+            }
+
+            // Trigger product list update if a shop is already selected
+            if (selectElement.value) {
+                appState.selectedShopId = selectElement.value;
+                renderOwnerProducts(appState.selectedShopId);
+            }
+        };
+
+        // Handle shop selection change in product management
+        document.getElementById('select-shop-for-products').addEventListener('change', (e) => {
+            appState.selectedShopId = e.target.value;
+            if (appState.selectedShopId) {
+                renderOwnerProducts(appState.selectedShopId);
+            } else {
+                document.getElementById('owner-products-list').innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.selectShopToManageProducts}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.selectShopToManageProducts}</p>`;
+                updateTexts();
+            }
+        });
+
+        // Render products for selected shop in owner view
+        const renderOwnerProducts = async (shopId) => {
+            showLoading();
+            const ownerProductsListDiv = document.getElementById('owner-products-list');
+            ownerProductsListDiv.innerHTML = ''; // Clear previous products
+
+            if (!shopId) {
+                hideLoading();
+                return;
+            }
+
+            try {
+                const productsRef = collection(db, `artifacts/${appId}/public/data/shops/${shopId}/products`);
+                const q = query(productsRef); // No orderBy to avoid index issues
+                const querySnapshot = await getDocs(q); // Use getDocs for one-time fetch here
+
+                const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                products.sort((a, b) => a.name.localeCompare(b.name));
+
+                if (products.length === 0) {
+                    ownerProductsListDiv.innerHTML = `
+                        <p class="text-center text-gray-400">
+                            <span data-lang="en">No products in this shop. Add one!</span>
+                            <span data-lang="te" class="hidden">ఈ దుకాణంలో ఉత్పత్తులు లేవు. ఒకదాన్ని జోడించండి!</span>
+                        </p>
+                    `;
+                    updateTexts();
+                    hideLoading();
+                    return;
+                }
+
+                products.forEach(product => {
+                    ownerProductsListDiv.innerHTML += `
+                        <div class="bg-gray-700 p-4 rounded-lg shadow-md flex items-center justify-between">
+                            <div class="flex-grow">
+                                <h4 class="text-lg font-semibold text-yellow-300">${product.name}</h4>
+                                <p class="text-gray-300 text-sm">₹${product.price.toFixed(2)} | <span class="${product.inStock ? 'text-green-400' : 'text-red-400'}">
+                                    <span data-lang="en">${product.inStock ? appState.texts.en.inStock : appState.texts.en.outOfStock}</span>
+                                    <span data-lang="te" class="hidden">${product.inStock ? appState.texts.te.inStock : appState.texts.te.outOfStock}</span>
+                                </span></p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button class="bg-blue-600 text-white px-4 py-2 rounded-full glow-button hover:bg-blue-500 font-semibold text-sm edit-product-btn"
+                                        data-product-id="${product.id}" data-shop-id="${shopId}"
+                                        data-name="${product.name}" data-price="${product.price}" data-description="${product.description}" data-image-url="${product.imageUrl}" data-in-stock="${product.inStock}">
+                                    <i class="fas fa-edit mr-1"></i>
+                                    <span data-lang="en">Edit</span>
+                                    <span data-lang="te" class="hidden">సవరించండి</span>
+                                </button>
+                                <button class="bg-red-600 text-white px-4 py-2 rounded-full glow-button hover:bg-red-500 font-semibold text-sm delete-product-btn" data-product-id="${product.id}" data-shop-id="${shopId}">
+                                    <i class="fas fa-trash-alt mr-1"></i>
+                                    <span data-lang="en">Delete</span>
+                                    <span data-lang="te" class="hidden">తొలగించండి</span>
+                                </button>
+                                <button class="bg-purple-600 text-white px-4 py-2 rounded-full glow-button hover:bg-purple-500 font-semibold text-sm toggle-stock-btn"
+                                        data-product-id="${product.id}" data-shop-id="${shopId}" data-in-stock="${product.inStock}">
+                                    <i class="fas fa-toggle-${product.inStock ? 'on' : 'off'} mr-1"></i>
+                                    <span data-lang="en">${product.inStock ? 'Out of Stock' : 'In Stock'}</span>
+                                    <span data-lang="te" class="hidden">${product.inStock ? 'స్టాక్‌లో లేదు' : 'స్టాక్‌లో ఉంది'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                updateTexts();
+                addProductManagementListeners();
+            } catch (error) {
+                console.error("Error rendering products:", error);
+                showNotificationPopup(currentLanguage === 'en' ? `Failed to load products: ${error.message}` : `ఉత్పత్తులను లోడ్ చేయడంలో విఫలమైంది: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        };
+
+        // Add/Edit Product Modal Management
+        document.getElementById('add-product-btn').addEventListener('click', () => {
+            if (!appState.selectedShopId) {
+                showNotificationPopup(currentLanguage === 'en' ? 'Please select a shop first.' : 'దయచేసి ముందుగా దుకాణాన్ని ఎంచుకోండి.');
+                return;
+            }
+            document.getElementById('product-modal-title').innerHTML = `<span data-lang="en">${appState.texts.en.addProduct}</span><span data-lang="te" class="hidden">${appState.texts.te.addProduct}</span>`;
+            document.getElementById('product-id-field').value = '';
+            document.getElementById('product-shop-id-field').value = appState.selectedShopId;
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-price').value = '';
+            document.getElementById('product-description').value = '';
+            document.getElementById('product-image-url').value = '';
+            document.getElementById('product-in-stock').checked = true;
+            document.getElementById('product-modal').classList.remove('hidden');
+            updateTexts();
+        });
+
+        document.getElementById('cancel-product-modal-btn').addEventListener('click', () => {
+            document.getElementById('product-modal').classList.add('hidden');
+        });
+
+        const addProductManagementListeners = () => {
+            document.querySelectorAll('.edit-product-btn').forEach(button => {
+                button.onclick = null;
+                button.addEventListener('click', (e) => {
+                    const data = e.currentTarget.dataset;
+                    document.getElementById('product-modal-title').innerHTML = `<span data-lang="en">${appState.texts.en.editProduct}</span><span data-lang="te" class="hidden">${appState.texts.te.editProduct}</span>`;
+                    document.getElementById('product-id-field').value = data.productId;
+                    document.getElementById('product-shop-id-field').value = data.shopId;
+                    document.getElementById('product-name').value = data.name;
+                    document.getElementById('product-price').value = data.price;
+                    document.getElementById('product-description').value = data.description;
+                    document.getElementById('product-image-url').value = data.imageUrl || '';
+                    document.getElementById('product-in-stock').checked = data.inStock === 'true';
+                    document.getElementById('product-modal').classList.remove('hidden');
+                    updateTexts();
+                });
+            });
+
+            document.querySelectorAll('.delete-product-btn').forEach(button => {
+                button.onclick = null;
+                button.addEventListener('click', async (e) => {
+                    if (confirm(currentLanguage === 'en' ? 'Are you sure you want to delete this product?' : 'మీరు ఈ ఉత్పత్తిని తొలగించాలనుకుంటున్నారా?')) {
+                        showLoading();
+                        const productId = e.currentTarget.dataset.productId;
+                        const shopId = e.currentTarget.dataset.shopId;
+                        try {
+                            await deleteDoc(doc(db, `artifacts/${appId}/public/data/shops/${shopId}/products`, productId));
+                            showNotificationPopup(currentLanguage === 'en' ? 'Product deleted successfully!' : 'ఉత్పత్తి విజయవంతంగా తొలగించబడింది!');
+                            renderOwnerProducts(shopId); // Re-render products for the current shop
+                        } catch (error) {
+                            console.error("Error deleting product:", error);
+                            showNotificationPopup(currentLanguage === 'en' ? `Failed to delete product: ${error.message}` : `ఉత్పత్తిని తొలగించడంలో విఫలమైంది: ${error.message}`);
+                        } finally {
+                            hideLoading();
+                        }
+                    }
+                });
+            });
+
+            document.querySelectorAll('.toggle-stock-btn').forEach(button => {
+                button.onclick = null;
+                button.addEventListener('click', async (e) => {
+                    showLoading();
+                    const productId = e.currentTarget.dataset.productId;
+                    const shopId = e.currentTarget.dataset.shopId;
+                    const currentStockStatus = e.currentTarget.dataset.inStock === 'true';
+                    const newStockStatus = !currentStockStatus;
+                    try {
+                        await updateDoc(doc(db, `artifacts/${appId}/public/data/shops/${shopId}/products`, productId), { inStock: newStockStatus });
+                        showNotificationPopup(currentLanguage === 'en' ? `Product stock status updated to ${newStockStatus ? 'In Stock' : 'Out of Stock'}!` : `ఉత్పత్తి స్టాక్ స్థితి నవీకరించబడింది: ${newStockStatus ? 'స్టాక్‌లో ఉంది' : 'స్టాక్‌లో లేదు'}!`);
+                        renderOwnerProducts(shopId); // Re-render to show updated status
+                    } catch (error) {
+                        console.error("Error toggling stock:", error);
+                        showNotificationPopup(currentLanguage === 'en' ? `Failed to update stock: ${error.message}` : `స్టాక్ అప్‌డేట్ చేయడంలో విఫలమైంది: ${error.message}`);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            });
+        };
+
+        // Handle Add/Edit Product form submission
+        document.getElementById('product-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showLoading();
+
+            const productId = document.getElementById('product-id-field').value;
+            const shopId = document.getElementById('product-shop-id-field').value; // Must be already selected
+            const productName = document.getElementById('product-name').value.trim();
+            const productPrice = parseFloat(document.getElementById('product-price').value);
+            const productDescription = document.getElementById('product-description').value.trim();
+            const productImageUrl = document.getElementById('product-image-url').value.trim();
+            const productInStock = document.getElementById('product-in-stock').checked;
+
+            if (!shopId || !productName || isNaN(productPrice) || productPrice <= 0) {
+                showNotificationPopup(currentLanguage === 'en' ? 'Please fill all required product details correctly.' : 'దయచేసి అవసరమైన ఉత్పత్తి వివరాలన్నింటినీ సరిగ్గా పూరించండి.');
+                hideLoading();
+                return;
+            }
+
+            const productData = {
+                name: productName,
+                price: productPrice,
+                description: productDescription,
+                imageUrl: productImageUrl,
+                inStock: productInStock
+            };
+
+            try {
+                if (productId) {
+                    // Edit existing product
+                    await updateDoc(doc(db, `artifacts/${appId}/public/data/shops/${shopId}/products`, productId), productData);
+                    showNotificationPopup(currentLanguage === 'en' ? 'Product updated successfully!' : 'ఉత్పత్తి విజయవంతంగా నవీకరించబడింది!');
+                } else {
+                    // Add new product
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/shops/${shopId}/products`), productData);
+                    showNotificationPopup(currentLanguage === 'en' ? 'Product added successfully!' : 'ఉత్పత్తి విజయవంతంగా జోడించబడింది!');
+                }
+                document.getElementById('product-modal').classList.add('hidden');
+                renderOwnerProducts(shopId); // Re-render products for the current shop
+            } catch (error) {
+                console.error("Error saving product:", error);
+                showNotificationPopup(currentLanguage === 'en' ? `Failed to save product: ${error.message}` : `ఉత్పత్తిని సేవ్ చేయడంలో విఫలమైంది: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Render owner's view of customer orders
+        const renderOwnerOrders = (orders) => {
+            const ownerOrdersListDiv = document.getElementById('owner-orders-list');
+            ownerOrdersListDiv.innerHTML = '';
+            if (orders.length === 0) {
+                ownerOrdersListDiv.innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.noOrdersYet}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.noOrdersYet}</p>`;
+                updateTexts();
+                return;
+            }
+
+            orders.sort((a, b) => (b.orderDate ? b.orderDate.toDate().getTime() : 0) - (a.orderDate ? a.orderDate.toDate().getTime() : 0));
+
+            orders.forEach(order => {
+                const itemsSummary = order.items.map(item => `${item.productName} (x${item.quantity})`).join(', ');
+                let statusColor = '';
+                switch (order.status) {
+                    case 'Processing': statusColor = 'text-blue-400'; break;
+                    case 'Out for Delivery': statusColor = 'text-purple-400'; break;
+                    case 'Delivered': statusColor = 'text-green-400'; break;
+                    case 'Cancelled': statusColor = 'text-red-400'; break;
+                    default: statusColor = 'text-gray-400';
+                }
+
+                ownerOrdersListDiv.innerHTML += `
+                    <div class="bg-gray-700 p-4 rounded-lg shadow-md">
+                        <p class="text-lg mb-1"><span data-lang="en">Order ID:</span> <span data-lang="te" class="hidden">ఆర్డర్ ఐడి:</span> <strong class="text-yellow-300">${order.orderId}</strong></p>
+                        <p class="mb-1"><span data-lang="en">Phone:</span> <span data-lang="te" class="hidden">ఫోన్:</span> ${order.customerPhone}</p>
+                        <p class="mb-1 text-sm text-gray-400"><span data-lang="en">Items:</span> <span data-lang="te" class="hidden">వస్తువులు:</span> ${itemsSummary}</p>
+                        <p class="mb-1"><span data-lang="en">Total: ₹</span> <span data-lang="te" class="hidden">మొత్తం: ₹</span> <strong class="text-yellow-400">${order.totalAmount.toFixed(2)}</strong></p>
+                        <p class="mb-2"><span data-lang="en">Status:</span> <span data-lang="te" class="hidden">స్థితి:</span> <span class="${statusColor}">${appState.texts[currentLanguage][order.status.toLowerCase().replace(/\s/g, '')] || order.status}</span></p>
+                        <div class="flex space-x-2 mt-3">
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded-full glow-button hover:bg-blue-500 font-semibold text-sm view-order-details-btn" data-order-id="${order.id}">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                <span data-lang="en">Details</span>
+                                <span data-lang="te" class="hidden">వివరాలు</span>
+                            </button>
+                            ${order.status !== 'Cancelled' && order.status !== 'Delivered' ? `
+                            <button class="bg-red-600 text-white px-4 py-2 rounded-full glow-button hover:bg-red-500 font-semibold text-sm cancel-order-owner-btn" data-order-id="${order.id}">
+                                <i class="fas fa-times-circle mr-1"></i>
+                                <span data-lang="en">Cancel Order</span>
+                                <span data-lang="te" class="hidden">ఆర్డర్‌ను రద్దు చేయండి</span>
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            updateTexts();
+            addOwnerOrderManagementListeners();
+        };
+
+        // Notification sound
+        const synth = new Tone.Synth().toDestination();
+        const playNotificationSound = () => {
+            synth.triggerAttackRelease("C4", "8n"); // Play a C4 note for 1/8th note duration
+        };
+
+        // Check for new orders and trigger notifications
+        const checkForNewOrders = (orders) => {
+            const currentProcessingOrders = orders.filter(order => order.status === 'Processing');
+            const previousNewOrdersCount = appState.ownerNewOrdersCount;
+            appState.ownerNewOrdersCount = currentProcessingOrders.length;
+
+            if (appState.ownerNewOrdersCount > previousNewOrdersCount) {
+                // New orders detected!
+                playNotificationSound();
+                showNotificationPopup(currentLanguage === 'en' ? `New Order! Total processing: ${appState.ownerNewOrdersCount}` : `కొత్త ఆర్డర్! మొత్తం ప్రాసెసింగ్: ${appState.ownerNewOrdersCount}`);
+            }
+            updateNotificationBell();
+        };
+
+        const updateNotificationBell = () => {
+            const bell = document.getElementById('notification-bell');
+            const count = document.getElementById('new-orders-count');
+            if (appState.ownerNewOrdersCount > 0) {
+                count.textContent = appState.ownerNewOrdersCount;
+                count.classList.remove('hidden');
+                bell.classList.add('bell-animate');
+            } else {
+                count.classList.add('hidden');
+                bell.classList.remove('bell-animate');
+            }
+        };
+        // Initial update of bell on load
+        updateNotificationBell();
+
+        document.getElementById('notification-bell').addEventListener('click', () => {
+            showNotificationPopup(currentLanguage === 'en' ? `You have ${appState.ownerNewOrdersCount} new orders!` : `మీకు ${appState.ownerNewOrdersCount} కొత్త ఆర్డర్‌లు ఉన్నాయి!`);
+        });
+
+        // Order Details/Update Status Modal Management for Owner
+        const addOwnerOrderManagementListeners = () => {
+            document.querySelectorAll('.view-order-details-btn').forEach(button => {
+                button.onclick = null;
+                button.addEventListener('click', async (e) => {
+                    showLoading();
+                    const orderId = e.currentTarget.dataset.orderId;
+                    try {
+                        const orderDoc = await getDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId));
+                        if (orderDoc.exists()) {
+                            const orderData = orderDoc.data();
+                            document.getElementById('modal-order-id').textContent = orderData.orderId;
+                            document.getElementById('modal-customer-phone').textContent = orderData.customerPhone;
+                            document.getElementById('modal-delivery-address').textContent = orderData.deliveryAddress;
+                            document.getElementById('modal-delivery-charge-display').textContent = (orderData.deliveryCharge || 0).toFixed(2); // Display delivery charge
+                            document.getElementById('modal-order-date').textContent = orderData.orderDate ? new Date(orderData.orderDate.toDate()).toLocaleString() : 'N/A';
+
+                            const modalOrderItemsList = document.getElementById('modal-order-items');
+                            modalOrderItemsList.innerHTML = '';
+                            orderData.items.forEach(item => {
+                                modalOrderItemsList.innerHTML += `<li>${item.productName} (${item.shopName}) - ${item.quantity} x ₹${item.price.toFixed(2)}</li>`;
+                            });
+                            document.getElementById('modal-order-total').textContent = orderData.totalAmount.toFixed(2);
+                            document.getElementById('modal-order-status').value = orderData.status; // Set current status
+                            document.getElementById('save-order-status-btn').dataset.orderId = orderId; // Store ID for saving
+
+                            document.getElementById('order-details-modal').classList.remove('hidden');
+                        } else {
+                            showNotificationPopup(currentLanguage === 'en' ? 'Order not found.' : 'ఆర్డర్ కనుగొనబడలేదు.');
+                        }
+                    } catch (error) {
+                        console.error("Error viewing order details:", error);
+                        showNotificationPopup(currentLanguage === 'en' ? `Failed to load order details: ${error.message}` : `ఆర్డర్ వివరాలను లోడ్ చేయడంలో విఫలమైంది: ${error.message}`);
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.cancel-order-owner-btn').forEach(button => {
+                button.onclick = null;
+                button.addEventListener('click', async (e) => {
+                    if (confirm(currentLanguage === 'en' ? 'Are you sure you want to cancel this order?' : 'మీరు ఈ ఆర్డర్‌ను రద్దు చేయాలనుకుంటున్నారా?')) {
+                        showLoading();
+                        const orderId = e.currentTarget.dataset.orderId;
+                        try {
+                            await updateDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId), { status: 'Cancelled' });
+                            showNotificationPopup(currentLanguage === 'en' ? 'Order cancelled successfully!' : 'ఆర్డర్ విజయవంతంగా రద్దు చేయబడింది!');
+                        } catch (error) {
+                            console.error("Error cancelling order:", error);
+                            showNotificationPopup(currentLanguage === 'en' ? `Failed to cancel order: ${error.message}` : `ఆర్డర్‌ను రద్దు చేయడంలో విఫలమైంది: ${error.message}`);
+                        } finally {
+                            hideLoading();
+                        }
+                    }
+                });
+            });
+        };
+
+        document.getElementById('cancel-order-modal-owner-btn').addEventListener('click', () => {
+            document.getElementById('order-details-modal').classList.add('hidden');
+        });
+
+        document.getElementById('save-order-status-btn').addEventListener('click', async (e) => {
+            showLoading();
+            const orderId = e.target.dataset.orderId;
+            const newStatus = document.getElementById('modal-order-status').value;
+            try {
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/orders`, orderId), { status: newStatus });
+                showNotificationPopup(currentLanguage === 'en' ? `Order status updated to ${newStatus}!` : `ఆర్డర్ స్థితి ${appState.texts[currentLanguage][newStatus.toLowerCase().replace(/\s/g, '')] || newStatus} కు నవీకరించబడింది!`);
+                document.getElementById('order-details-modal').classList.add('hidden');
+            } catch (error) {
+                console.error("Error updating order status:", error);
+                showNotificationPopup(currentLanguage === 'en' ? `Failed to update order status: ${error.message}` : `ఆర్డర్ స్థితిని నవీకరించడంలో విఫలమైంది: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Owner Chat Functions
+        const renderOwnerChatConversations = (conversations) => {
+            const chatList = document.getElementById('chat-conversation-list');
+            chatList.innerHTML = '';
+            if (conversations.length === 0) {
+                chatList.innerHTML = `<p class="text-center text-gray-400 text-sm" data-lang="en">${appState.texts.en.noActiveConversations}</p><p class="text-center text-gray-400 text-sm hidden" data-lang="te">${appState.texts.te.noActiveConversations}</p>`;
+                updateTexts();
+                return;
+            }
+
+            // Sort by last message time (if available)
+            conversations.sort((a, b) => (b.lastMessageTime ? b.lastMessageTime.toDate().getTime() : 0) - (a.lastMessageTime ? a.lastMessageTime.toDate().getTime() : 0));
+
+            conversations.forEach(conv => {
+                const lastMessage = conv.lastMessage || (currentLanguage === 'en' ? 'No messages yet.' : 'ఇంకా సందేశాలు లేవు.');
+                const lastMessageTime = conv.lastMessageTime ? new Date(conv.lastMessageTime.toDate()).toLocaleString() : '';
+                chatList.innerHTML += `
+                    <div class="bg-gray-800 p-3 rounded-lg shadow-sm cursor-pointer hover:bg-gray-600 transition-colors duration-200 chat-conversation-item" data-customer-phone="${conv.id}">
+                        <p class="font-semibold text-yellow-300">Customer: ${conv.id}</p>
+                        <p class="text-sm text-gray-300 truncate">${lastMessage}</p>
+                        <p class="text-xs text-gray-400 text-right">${lastMessageTime}</p>
+                    </div>
+                `;
+            });
+            updateTexts();
+            addChatConversationListeners();
+        };
+
+        const addChatConversationListeners = () => {
+            document.querySelectorAll('.chat-conversation-item').forEach(item => {
+                item.onclick = null;
+                item.addEventListener('click', (e) => {
+                    const customerPhone = e.currentTarget.dataset.customerPhone;
+                    appState.currentOwnerChatCustomerId = customerPhone;
+                    document.getElementById('chat-header').innerHTML = `<span data-lang="en">Chat with ${customerPhone}</span><span data-lang="te" class="hidden">${customerPhone} తో చాట్</span>`;
+                    document.getElementById('chat-input-area').classList.remove('hidden');
+                    document.getElementById('chat-whatsapp-link').classList.remove('hidden');
+                    document.getElementById('chat-whatsapp-link').href = `https://wa.me/${customerPhone}?text=${encodeURIComponent(currentLanguage === 'en' ? "Hello, regarding your order..." : "హలో, మీ ఆర్డర్ గురించి...")}`;
+                    updateTexts();
+                    loadChatMessages(customerPhone);
+
+                    // Highlight selected conversation
+                    document.querySelectorAll('.chat-conversation-item').forEach(el => el.classList.remove('bg-yellow-800'));
+                    e.currentTarget.classList.add('bg-yellow-800');
+                });
+            });
+        };
+
+        const loadChatMessages = (customerPhone) => {
+            if (unsubscribeOwnerChatMessages) unsubscribeOwnerChatMessages(); // Unsubscribe previous chat messages listener
+
+            const messagesCollectionRef = collection(db, `artifacts/${appId}/public/data/chats/${customerPhone}/messages`);
+            const q = query(messagesCollectionRef); // No orderBy to avoid index issues. Client-side sort.
+
+            unsubscribeOwnerChatMessages = onSnapshot(q, (snapshot) => {
+                const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                messages.sort((a, b) => (a.timestamp ? a.timestamp.toDate().getTime() : 0) - (b.timestamp ? b.timestamp.toDate().getTime() : 0)); // Sort by time
+
+                const chatDisplay = document.getElementById('chat-messages-display');
+                chatDisplay.innerHTML = ''; // Clear existing messages
+                if (messages.length === 0) {
+                    chatDisplay.innerHTML = `<p class="text-center text-gray-400" data-lang="en">${appState.texts.en.startConversation}</p><p class="text-center text-gray-400 hidden" data-lang="te">${appState.texts.te.startConversation}</p>`;
+                    updateTexts();
+                    return;
+                }
+
+                messages.forEach(msg => {
+                    const isOwner = msg.sender === 'owner';
+                    const alignmentClass = isOwner ? 'justify-end' : 'justify-start';
+                    const bubbleColor = isOwner ? 'bg-blue-700' : 'bg-gray-600';
+                    const senderName = isOwner ? (currentLanguage === 'en' ? 'You' : 'మీరు') : 'Customer';
+                    const time = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                    chatDisplay.innerHTML += `
+                        <div class="flex ${alignmentClass} mb-3">
+                            <div class="${bubbleColor} p-3 rounded-lg max-w-[80%] shadow">
+                                <p class="text-xs text-gray-300 mb-1">${senderName} <span class="float-right text-gray-400 ml-2">${time}</span></p>
+                                <p class="text-white">${msg.text}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                chatDisplay.scrollTop = chatDisplay.scrollHeight; // Scroll to bottom
+            }, (error) => console.error("Error fetching chat messages:", error));
+        };
+
+        document.getElementById('send-chat-message-btn').addEventListener('click', async () => {
+            const messageInput = document.getElementById('chat-message-input');
+            const messageText = messageInput.value.trim();
+            const customerPhone = appState.currentOwnerChatCustomerId;
+
+            if (messageText && customerPhone) {
+                try {
+                    // Add message to subcollection
+                    await addDoc(collection(db, `artifacts/${appId}/public/data/chats/${customerPhone}/messages`), {
+                        sender: 'owner',
+                        text: messageText,
+                        timestamp: serverTimestamp()
+                    });
+
+                    // Update the last message and timestamp on the conversation document itself
+                    await setDoc(doc(db, `artifacts/${appId}/public/data/chats`, customerPhone), {
+                        lastMessage: messageText,
+                        lastMessageTime: serverTimestamp()
+                    }, { merge: true }); // Use merge to avoid overwriting other fields
+
+                    messageInput.value = ''; // Clear input
+                } catch (error) {
+                    console.error("Error sending message:", error);
+                    showNotificationPopup(currentLanguage === 'en' ? `Failed to send message: ${error.message}` : `సందేశాన్ని పంపడంలో విఫలమైంది: ${error.message}`);
+                }
+            }
+        });
+
+        // Animated stars creation
+        const createStar = () => {
+            const star = document.createElement('div');
+            star.classList.add('star');
+            star.style.width = star.style.height = `${Math.random() * 3 + 1}px`; // 1-4px
+            star.style.left = `${Math.random() * 100}%`;
+            star.style.top = `${Math.random() * 100}%`;
+            star.style.animationDuration = `${Math.random() * 3 + 2}s`; // 2-5s
+            star.style.animationDelay = `${Math.random() * 5}s`; // 0-5s delay
+            document.querySelector('.stars').appendChild(star);
+        };
+
+        const generateStars = (count) => {
+            for (let i = 0; i < count; i++) {
+                createStar();
+            }
+        };
+
+        // --- Initial Setup on Window Load ---
+        window.onload = async function () {
+            initializeFirebase(); // This will handle auth and then setup listeners
+            generateStars(100); // Generate 100 stars
+
+            // Show customer view by default unless owner is already logged in
+            if (!auth || !auth.currentUser) { // Check if auth object exists and no user is logged in initially
+                showCustomerView();
+            }
+            updateCartDisplay(); // Ensure cart count is correct on load
+        };
+    </script>
+</body>
+</html>
